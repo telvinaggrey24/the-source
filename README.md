@@ -20,4 +20,4 @@ The project is already set up for Vercel (`vercel.json`). In the Vercel dashboar
 
 | Name | Production / Preview | Development |
 | --- | --- | --- |
-| `VITE_APP_URL` | your deployment URL | `http://localhost:3000` |
+| `VITE_APP_URL` | `https://thesource.co.tz` | `http://localhost:3000` |
