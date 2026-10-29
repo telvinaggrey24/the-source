@@ -675,7 +675,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="text-center mb-6">
             <div className="bg-white p-2.5 rounded-lg shadow-lg mb-4 inline-block">
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="The Source"
                 className="h-12 sm:h-14 w-auto object-contain mx-auto"
               />
@@ -822,7 +822,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="bg-white p-1 rounded shrink-0 shadow-md">
                 <img
-                  src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                  src="/assets/logo.png"
                   alt="The Source"
                   className="h-7 w-auto object-contain"
                 />

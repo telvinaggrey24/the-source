@@ -29,7 +29,7 @@ export const AuthorsDirectoryPage: React.FC = () => {
             </button>
             <div className="bg-white rounded-xs px-3 py-1.5 inline-flex items-center shadow-sm w-fit">
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="THE SOURCE"
                 className="h-7 sm:h-8 w-auto object-contain"
               />

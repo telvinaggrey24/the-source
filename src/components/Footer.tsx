@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="bg-white p-1.5 rounded shadow-sm">
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="THE SOURCE"
                 className="h-9 sm:h-11 w-auto object-contain"
               />

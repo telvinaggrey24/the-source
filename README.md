@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# THE SOURCE
 
-# Run and deploy your AI Studio app
+Premier East African news publication: verified journalism across politics, business, sports, culture, and technology.
 
-This contains everything you need to run your app locally.
+## Run locally
 
-View your app in AI Studio: https://ai.studio/apps/3bf77fdf-21c2-40dd-b2d4-21f96f90150a
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Copy [`.env.example`](.env.example) to `.env.local` and set `VITE_APP_URL` if you have a public URL
 3. Run the app:
    `npm run dev`
+
+The site runs at [http://localhost:3000](http://localhost:3000).
+
+## Deploy on Vercel
+
+The project is already set up for Vercel (`vercel.json`). In the Vercel dashboard, add this environment variable for Production, Preview, and Development:
+
+| Name | Production / Preview | Development |
+| --- | --- | --- |
+| `VITE_APP_URL` | your deployment URL | `http://localhost:3000` |

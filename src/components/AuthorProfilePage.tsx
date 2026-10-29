@@ -118,7 +118,7 @@ export const AuthorProfilePage: React.FC<AuthorProfilePageProps> = ({ authorId }
               className="flex items-center gap-1.5 hover:opacity-85 transition-opacity cursor-pointer mr-1"
             >
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="THE SOURCE"
                 className="h-5 w-auto object-contain"
               />

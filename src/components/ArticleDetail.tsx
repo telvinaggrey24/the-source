@@ -197,7 +197,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
             title="The Source Home"
           >
             <img
-              src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+              src="/assets/logo.png"
               alt="The Source"
               className="h-7 w-auto object-contain bg-white rounded p-0.5 border border-stone-200"
             />

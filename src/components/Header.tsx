@@ -97,7 +97,7 @@ export const Header: React.FC = () => {
               aria-label={`${appearanceSettings?.siteName || 'THE SOURCE'} Home`}
             >
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="The Source"
                 className="h-8 w-auto object-contain bg-white rounded-xs px-2 py-0.5 shadow-2xs group-hover:opacity-90 transition-opacity"
               />
@@ -207,7 +207,7 @@ export const Header: React.FC = () => {
           >
             <div className="bg-white p-2 rounded shadow-md border border-stone-200 shrink-0">
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="THE SOURCE — Real News • Real People • Real Impact"
                 className="h-12 sm:h-16 md:h-20 w-auto object-contain group-hover:scale-[1.01] transition-transform"
               />
@@ -306,7 +306,7 @@ export const Header: React.FC = () => {
               {/* Drawer Header with Official Logo */}
               <div className="flex items-center justify-between pb-3 border-b border-stone-200">
                 <img
-                  src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                  src="/assets/logo.png"
                   alt="The Source"
                   className="h-9 w-auto object-contain bg-white rounded p-1 shadow-2xs"
                 />

@@ -1,8 +1,0 @@
-{
-  "name": "THE SOURCE",
-  "description": "THE SOURCE: Real News • Real People • Real Impact. Premier news publication delivering verified journalism across East Africa and globally.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}

@@ -1084,7 +1084,7 @@ export const INITIAL_APPEARANCE_SETTINGS: WebsiteAppearanceSettings = {
   siteName: 'THE SOURCE',
   siteTagline: 'REAL NEWS • REAL PEOPLE • REAL IMPACT',
   siteLogoText: 'THE SOURCE',
-  siteLogoUrl: '/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png',
+  siteLogoUrl: '/assets/logo.png',
   primaryColor: '#BB1919',
   breakingNewsEnabled: true,
   breakingNewsTicker: 'PARLIAMENT IN DODOMA ENACTS HEALTHCARE REFORM /// SGR FREIGHT FLEET EXPANDS CENTRAL TRADE CORRIDOR /// TAIFA STARS QUALIFY FOR CONTINENTAL FINALS',

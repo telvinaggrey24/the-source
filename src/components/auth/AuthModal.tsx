@@ -212,7 +212,7 @@ export const AuthModal: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="bg-white p-1 rounded shadow-xs">
               <img
-                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                src="/assets/logo.png"
                 alt="The Source"
                 className="h-8 sm:h-9 w-auto object-contain"
               />
