@@ -3,10 +3,9 @@ import { useNews } from '../context/NewsContext';
 import {
   Home,
   Newspaper,
+  Trophy,
   Users,
-  Heart,
   SlidersHorizontal,
-  User,
   Shield,
 } from 'lucide-react';
 
@@ -14,15 +13,14 @@ export const MobileBottomNav: React.FC = () => {
   const {
     view,
     setView,
-    setIsDonateModalOpen,
-    setIsAuthModalOpen,
     currentUser,
     isAdminAuthenticated,
     language,
   } = useNews();
 
   const isHome = view.type === 'home';
-  const isNews = view.type === 'category' || (view.type === 'page' && view.pageId === 'job-and-health');
+  const isBusiness = view.type === 'category' && view.categorySlug === 'business';
+  const isSports = view.type === 'category' && view.categorySlug === 'sports';
   const isAuthors = view.type === 'authors-directory' || view.type === 'author';
   const isAdmin = view.type === 'admin';
 
@@ -46,14 +44,29 @@ export const MobileBottomNav: React.FC = () => {
       <button
         onClick={() => setView({ type: 'category', categorySlug: 'business' })}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
-          isNews ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
+          isBusiness ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
       >
-        <Newspaper className={`w-5 h-5 mb-0.5 ${isNews ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
-        <span className="text-[10px] leading-tight tracking-tight">Business</span>
+        <Newspaper className={`w-5 h-5 mb-0.5 ${isBusiness ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+        <span className="text-[10px] leading-tight tracking-tight">
+          {language === 'sw' ? 'Biashara' : 'Business'}
+        </span>
       </button>
 
-      {/* 3. Journalists / Staff */}
+      {/* 3. Sports Category */}
+      <button
+        onClick={() => setView({ type: 'category', categorySlug: 'sports' })}
+        className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
+          isSports ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
+        }`}
+      >
+        <Trophy className={`w-5 h-5 mb-0.5 ${isSports ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+        <span className="text-[10px] leading-tight tracking-tight">
+          {language === 'sw' ? 'Michezo' : 'Sports'}
+        </span>
+      </button>
+
+      {/* 4. Journalists / Staff */}
       <button
         onClick={() => setView({ type: 'authors-directory' })}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
@@ -61,21 +74,8 @@ export const MobileBottomNav: React.FC = () => {
         }`}
       >
         <Users className={`w-5 h-5 mb-0.5 ${isAuthors ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
-        <span className="text-[10px] leading-tight tracking-tight">Staff</span>
-      </button>
-
-      {/* 4. Donate (Prominent Pill) */}
-      <button
-        onClick={() => setIsDonateModalOpen(true)}
-        className="flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 text-red-600 hover:text-red-700 transition-colors cursor-pointer rounded-xs relative group"
-        title="Donate to The Sun"
-      >
-        <div className="relative">
-          <Heart className="w-5 h-5 mb-0.5 fill-red-600 stroke-red-600 group-hover:scale-110 transition-transform" />
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-ping" />
-        </div>
-        <span className="text-[10px] font-bold text-red-700 leading-tight tracking-tight">
-          {language === 'sw' ? 'Changia' : 'Donate'}
+        <span className="text-[10px] leading-tight tracking-tight">
+          {language === 'sw' ? 'Waandishi' : 'Staff'}
         </span>
       </button>
 

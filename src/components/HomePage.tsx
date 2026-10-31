@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNews } from '../context/NewsContext';
 import { HeroGrid } from './HeroGrid';
 import { ArticleCard } from './ArticleCard';
@@ -19,16 +19,28 @@ import {
   User,
   ShieldCheck,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const { articles, authors, setView, language } = useNews();
-  const publishedArticles = articles.filter(a => a.status === 'published');
+  const { articles, activeCategories, authors, setView, language, appearanceSettings } = useNews();
+  const publishedArticles = useMemo(() => articles.filter(a => a.status === 'published'), [articles]);
 
-  const sportsArticles = publishedArticles.filter(a => a.categoryId === 'cat_sports');
-  const bongoArticles = publishedArticles.filter(a => a.categoryId === 'cat_entertainment');
-  const techArticles = publishedArticles.filter(a => a.categoryId === 'cat_tech');
-  const politicsArticles = publishedArticles.filter(a => a.categoryId === 'cat_politics');
+  // Dynamic homepage category sorting (honors custom admin category order)
+  const dynamicCategories = useMemo(() => {
+    const customOrder = appearanceSettings?.homepageCategoryOrder || [];
+    if (customOrder.length > 0) {
+      return [...activeCategories].sort((a, b) => {
+        const idxA = customOrder.indexOf(a.slug);
+        const idxB = customOrder.indexOf(b.slug);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return 0;
+      });
+    }
+    return activeCategories;
+  }, [activeCategories, appearanceSettings?.homepageCategoryOrder]);
 
   return (
     <div className="w-full font-sans">
@@ -79,66 +91,6 @@ export const HomePage: React.FC = () => {
 
       {/* 2. BBC Hero Grid (Top Lead Story + Secondary + Most Read) */}
       <HeroGrid />
-
-      {/* 2b. Newsroom Voices & Bureau Columnists Rail */}
-      <section className="bg-stone-50 py-6 border-b border-stone-200" aria-label="Journalists and Columnists">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between pb-2 mb-4 border-b border-stone-200">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-5 bg-[#BB1919] inline-block" />
-              <h2 className="font-sans font-black text-lg text-stone-950 uppercase tracking-tight">
-                {language === 'sw' ? 'Sauti za Waandishi Wetu' : 'Newsroom Voices & Columnists'}
-              </h2>
-              <span className="hidden sm:inline text-xs text-stone-500 font-medium font-sans">
-                · Informed perspectives across Tanzania & the region
-              </span>
-            </div>
-            <button
-              onClick={() => setView({ type: 'authors-directory' })}
-              className="text-xs font-bold text-[#BB1919] hover:underline uppercase flex items-center gap-1 cursor-pointer"
-            >
-              <span>{language === 'sw' ? 'Waandishi Wote' : 'All 6 Staff'}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {authors.map(author => (
-              <div
-                key={author.id}
-                onClick={() => setView({ type: 'author', authorId: author.id })}
-                className="bg-white border border-stone-200 hover:border-[#BB1919] p-3.5 rounded-xs transition-all hover:shadow-2xs cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative mb-2.5 mx-auto w-16 h-16">
-                    <img
-                      src={author.avatar}
-                      alt={author.name}
-                      referrerPolicy="no-referrer"
-                      className="w-16 h-16 rounded-full object-cover border-2 border-stone-200 group-hover:border-[#BB1919] transition-colors"
-                    />
-                    <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-0.5 rounded-full shadow-2xs">
-                      <ShieldCheck className="w-3 h-3" />
-                    </div>
-                  </div>
-                  <h4 className="font-sans font-bold text-xs text-stone-900 group-hover:text-[#BB1919] transition-colors text-center line-clamp-1">
-                    {author.name}
-                  </h4>
-                  <p className="text-[10px] text-stone-500 font-sans text-center line-clamp-1 mt-0.5">
-                    {author.title.split(' ')[0]} {author.title.split(' ')[1] || ''}
-                  </p>
-                </div>
-                <div className="pt-2 mt-2 border-t border-stone-100 text-center">
-                  <span className="text-[10px] font-bold text-[#BB1919] uppercase tracking-wider inline-flex items-center gap-0.5 group-hover:underline">
-                    <span>View Stories</span>
-                    &rarr;
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* 3. THE SOURCE VERIFY SPOTLIGHT BANNER */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -257,78 +209,28 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* Main 8-column Editorial Feed */}
           <main className="lg:col-span-8 space-y-8">
-            {/* Business Section */}
-            <CategorySection
-              categorySlug="business"
-              title={language === 'sw' ? 'Biashara na Uchumi' : 'Business & Markets'}
-              layout="featured-left"
-            />
+            {/* Dynamic Editorial Category Sections (Controlled by Admin CMS) */}
+            {dynamicCategories.map((cat, idx) => {
+              const catArticles = publishedArticles.filter(
+                a =>
+                  a.categoryId === cat.id ||
+                  a.categoryId === `cat_${cat.slug}` ||
+                  a.categoryId === cat.slug ||
+                  a.categoryName.toLowerCase() === cat.name.toLowerCase() ||
+                  a.categoryId.includes(cat.slug)
+              );
+              if (catArticles.length === 0) return null;
 
-            {/* Politics Section */}
-            <CategorySection
-              categorySlug="politics"
-              title={language === 'sw' ? 'Siasa za Bunge & Serikali' : 'Politics & Governance'}
-              layout="grid"
-            />
-
-            {/* International Section */}
-            <CategorySection
-              categorySlug="international"
-              title={language === 'sw' ? 'Habari za Kimataifa' : 'International News'}
-              layout="grid"
-            />
-
-            {/* Dual Column: Football & Sports */}
-            <section className="py-6 border-b border-stone-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <div className="flex items-center justify-between pb-2 mb-4 border-b-2 border-stone-900">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-5 bg-[#BB1919]" />
-                      <h3 className="font-sans font-black text-lg text-stone-950 uppercase">
-                        {language === 'sw' ? 'Soka' : 'Football'}
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setView({ type: 'category', categorySlug: 'football' })}
-                      className="text-xs font-bold text-[#BB1919] hover:underline uppercase"
-                    >
-                      More &rarr;
-                    </button>
-                  </div>
-                  {publishedArticles.find(a => a.categoryId === 'cat_football' || a.categoryId === 'cat_sports') && (
-                    <ArticleCard article={publishedArticles.find(a => a.categoryId === 'cat_football' || a.categoryId === 'cat_sports')!} variant="standard" />
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between pb-2 mb-4 border-b-2 border-stone-900">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-5 bg-[#BB1919]" />
-                      <h3 className="font-sans font-black text-lg text-stone-950 uppercase">
-                        {language === 'sw' ? 'Burudani' : 'Entertainment'}
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setView({ type: 'category', categorySlug: 'entertainment' })}
-                      className="text-xs font-bold text-[#BB1919] hover:underline uppercase"
-                    >
-                      More &rarr;
-                    </button>
-                  </div>
-                  {publishedArticles.find(a => a.categoryId === 'cat_entertainment' || a.categoryId === 'cat_music') && (
-                    <ArticleCard article={publishedArticles.find(a => a.categoryId === 'cat_entertainment' || a.categoryId === 'cat_music')!} variant="standard" />
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Technology & Education */}
-            <CategorySection
-              categorySlug="technology"
-              title={language === 'sw' ? 'Sayansi na Teknolojia' : 'Technology & Innovation'}
-              layout="grid"
-            />
+              const layout = idx % 2 === 0 ? 'featured-left' : 'grid';
+              return (
+                <CategorySection
+                  key={cat.id}
+                  categorySlug={cat.slug}
+                  title={language === 'sw' && cat.nameSwahili ? cat.nameSwahili : cat.name}
+                  layout={layout}
+                />
+              );
+            })}
 
             {/* BBC Radio / Podcast Bulletin Banner */}
             <div className="bg-[#121212] text-white p-6 rounded-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -406,6 +308,63 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 5b. Newsroom Voices & Bureau Columnists Rail (Compact Downside) */}
+      <section className="bg-stone-100/80 py-4 sm:py-5 border-y border-stone-200 mt-6" aria-label="Journalists and Columnists">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between pb-2 mb-3 border-b border-stone-200/80">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-4 bg-[#BB1919] inline-block rounded-2xs" />
+              <h2 className="font-sans font-bold text-sm sm:text-base text-stone-900 uppercase tracking-tight">
+                {language === 'sw' ? 'Sauti za Waandishi Wetu' : 'Newsroom Voices & Columnists'}
+              </h2>
+              <span className="hidden sm:inline text-[11px] text-stone-500 font-sans">
+                · Perspectives across Tanzania & the region
+              </span>
+            </div>
+            <button
+              onClick={() => setView({ type: 'authors-directory' })}
+              className="text-[11px] font-bold text-[#BB1919] hover:underline uppercase flex items-center gap-1 cursor-pointer"
+            >
+              <span>{language === 'sw' ? 'Waandishi Wote' : 'All Staff'}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
+            {authors.map(author => (
+              <div
+                key={author.id}
+                onClick={() => setView({ type: 'author', authorId: author.id })}
+                className="bg-white border border-stone-200 hover:border-[#BB1919] p-2.5 rounded-xs transition-all hover:shadow-2xs cursor-pointer group flex items-center sm:flex-col sm:text-center gap-2.5"
+              >
+                <div className="relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 mx-auto">
+                  <img
+                    src={author.avatar}
+                    alt={author.name}
+                    referrerPolicy="no-referrer"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border border-stone-300 group-hover:border-[#BB1919] transition-colors"
+                  />
+                  <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-0.5 rounded-full shadow-2xs">
+                    <ShieldCheck className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-sans font-bold text-[11px] sm:text-xs text-stone-900 group-hover:text-[#BB1919] transition-colors truncate">
+                    {author.name}
+                  </h4>
+                  <p className="text-[10px] text-stone-500 font-sans truncate">
+                    {author.title.split(' ')[0]} {author.title.split(' ')[1] || ''}
+                  </p>
+                  <span className="text-[10px] font-bold text-[#BB1919] uppercase tracking-wider inline-flex items-center gap-0.5 mt-0.5 sm:hidden">
+                    Stories &rarr;
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 6. Newsletter Subscription */}
       <NewsletterSection />

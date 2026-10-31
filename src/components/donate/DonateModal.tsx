@@ -9,6 +9,9 @@ import {
   Smartphone,
   ArrowRight,
   Download,
+  Mail,
+  Phone,
+  MessageCircle,
 } from 'lucide-react';
 
 export const DonateModal: React.FC = () => {
@@ -18,7 +21,7 @@ export const DonateModal: React.FC = () => {
   const [currency, setCurrency] = useState<'TZS' | 'USD'>('TZS');
   const [selectedAmount, setSelectedAmount] = useState<number>(10000);
   const [customAmount, setCustomAmount] = useState<string>('');
-  const [provider, setProvider] = useState<'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'card'>('mpesa');
+  const [provider, setProvider] = useState<'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'card' | 'selcom'>('mpesa');
 
   const [donorName, setDonorName] = useState(currentUser?.name || '');
   const [donorPhone, setDonorPhone] = useState(currentUser?.phone || '');
@@ -48,18 +51,21 @@ export const DonateModal: React.FC = () => {
 
   if (!isDonateModalOpen) return null;
 
-  const tzsPresets = [5000, 10000, 25000, 50000, 100000];
-  const usdPresets = [5, 10, 25, 50, 100];
+  const tzsPresets = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
+  const usdPresets = [5, 10, 25, 50, 100, 250, 500];
   const activePresets = currency === 'TZS' ? tzsPresets : usdPresets;
   const currentTotal = customAmount ? parseFloat(customAmount) || 0 : selectedAmount;
 
   const handleDonateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTotal || currentTotal <= 0) return;
+    if (!currentTotal || currentTotal < 1 || (currency === 'TZS' && currentTotal > 1000000)) {
+      alert('Tafadhali chagua au weka kiwango kati ya 1 na 1,000,000 TZS');
+      return;
+    }
 
     setIsProcessing(true);
 
-    if (['mpesa', 'tigopesa', 'airtel', 'halopesa'].includes(provider)) {
+    if (['mpesa', 'tigopesa', 'airtel', 'halopesa', 'selcom'].includes(provider)) {
       setUssdPromptActive(true);
       setTimeout(() => {
         const record = recordDonation({
@@ -100,7 +106,7 @@ export const DonateModal: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="bg-white p-1 rounded shadow-xs">
               <img
-                src="/assets/logo.png"
+                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                 alt="The Source"
                 className="h-8 sm:h-9 w-auto object-contain"
               />
@@ -110,7 +116,7 @@ export const DonateModal: React.FC = () => {
                 {language === 'sw' ? 'Changia The Source' : 'Support The Source'}
               </h3>
               <span className="text-[10px] text-stone-400 font-sans tracking-wide">
-                Public Interest Journalism &bull; Digital Daily Only &bull; Real Impact
+                Public Interest Journalism &bull; Daily Update &bull; Real Impact
               </span>
             </div>
           </div>
@@ -124,7 +130,31 @@ export const DonateModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-5 sm:p-6 space-y-4">
+          {/* Quick Contact Strip */}
+          <div className="bg-stone-50 border border-stone-200 rounded-xs p-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans">
+            <div className="flex items-center gap-1.5 text-stone-700">
+              <Phone className="w-3.5 h-3.5 text-[#BB1919]" />
+              <span className="text-stone-500">Desk:</span>
+              <a href="tel:+255622754599" className="font-bold text-stone-900 hover:text-[#BB1919] font-mono">
+                +255 622 754 599
+              </a>
+            </div>
+            <div className="flex items-center gap-1.5 text-stone-700">
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-stone-500">WhatsApp:</span>
+              <a href="https://wa.me/255622754599" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-700 hover:underline font-mono">
+                622754599
+              </a>
+            </div>
+            <div className="flex items-center gap-1.5 text-stone-700">
+              <Mail className="w-3.5 h-3.5 text-stone-500" />
+              <a href="mailto:telvinaggrey24@gmail.com" className="font-bold text-stone-900 hover:text-[#BB1919]">
+                telvinaggrey24@gmail.com
+              </a>
+            </div>
+          </div>
+
           {completedDonation ? (
             <div className="text-center py-6 space-y-4">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
@@ -154,7 +184,8 @@ export const DonateModal: React.FC = () => {
               </div>
               <h4 className="text-lg font-bold text-stone-900">Angalia Skrini ya Simu Yako</h4>
               <p className="text-xs text-stone-600 max-w-sm mx-auto">
-                Ombi la malipo limetumwa kwenda <strong>{donorPhone}</strong>. Weka PIN ya {provider.toUpperCase()} kuthibitisha.
+                Ombi la malipo limetumwa kwenda <strong>{donorPhone}</strong>. Weka PIN ya {provider.toUpperCase()} kuthibitisha malipo ya{' '}
+                <strong>{currentTotal.toLocaleString()} {currency}</strong>.
               </p>
             </div>
           ) : (
@@ -215,9 +246,9 @@ export const DonateModal: React.FC = () => {
               {/* Amount Pills */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                  Chagua Kiasi cha Mchango:
+                  Chagua Kiasi cha Mchango (1 - 1,000,000 TZS):
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                   {activePresets.map(amt => (
                     <button
                       key={amt}
@@ -226,31 +257,57 @@ export const DonateModal: React.FC = () => {
                         setSelectedAmount(amt);
                         setCustomAmount('');
                       }}
-                      className={`py-2 text-xs font-bold font-mono rounded-xs border transition-all cursor-pointer ${
+                      className={`py-1.5 text-[11px] font-bold font-mono rounded-xs border transition-all cursor-pointer ${
                         selectedAmount === amt && !customAmount
-                          ? 'bg-[#BB1919] text-white border-[#BB1919]'
+                          ? 'bg-[#BB1919] text-white border-[#BB1919] shadow-2xs'
                           : 'bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-400'
                       }`}
                     >
-                      {currency === 'TZS' ? `${amt.toLocaleString()}` : `$${amt}`}
+                      {currency === 'TZS' ? `${amt >= 1000000 ? '1M' : amt >= 1000 ? `${amt / 1000}k` : amt}` : `$${amt}`}
                     </button>
                   ))}
                 </div>
+
+                {/* Custom Amount with 1 - 1,000,000 Range */}
+                <div className="mt-2.5">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-mono font-bold text-xs">
+                      {currency === 'TZS' ? 'TZS' : '$'}
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={currency === 'TZS' ? 1000000 : 1000}
+                      value={customAmount}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setCustomAmount(val);
+                        if (val) setSelectedAmount(Number(val));
+                      }}
+                      placeholder={`Weka kiasi maalum (1 - ${currency === 'TZS' ? '1,000,000' : '1,000'})...`}
+                      className="w-full pl-12 pr-3 py-2 text-xs bg-stone-50 border border-stone-300 rounded-xs font-mono font-bold focus:outline-hidden focus:border-[#BB1919]"
+                    />
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-sans mt-0.5 block">
+                    Kiwango kinaruhusiwa kuanzia 1 hadi 1,000,000 TZS
+                  </span>
+                </div>
               </div>
 
-              {/* Providers */}
+              {/* Providers with Selcom */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                  Njia ya Malipo:
+                  Njia ya Malipo (Payment Method):
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
+                    { id: 'selcom', name: 'Selcom Pay', badge: 'SELCOM' },
                     { id: 'mpesa', name: 'M-Pesa', badge: 'VODA' },
                     { id: 'tigopesa', name: 'Tigo Pesa', badge: 'TIGO' },
                     { id: 'airtel', name: 'Airtel Money', badge: 'AIRTEL' },
                     { id: 'halopesa', name: 'Halopesa', badge: 'HALO' },
-                    { id: 'crdb', name: 'CRDB/NMB', badge: 'BANK' },
-                    { id: 'card', name: 'Visa/Mastercard', badge: 'CARD' },
+                    { id: 'crdb', name: 'CRDB / NMB', badge: 'BANK' },
+                    { id: 'card', name: 'Visa / Mastercard', badge: 'CARD' },
                   ].map(p => (
                     <button
                       key={p.id}
@@ -258,12 +315,12 @@ export const DonateModal: React.FC = () => {
                       onClick={() => setProvider(p.id as any)}
                       className={`p-2 text-left rounded-xs border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         provider === p.id
-                          ? 'bg-red-50 text-[#BB1919] border-[#BB1919]'
-                          : 'bg-stone-50 text-stone-700 border-stone-200'
+                          ? 'bg-red-50 text-[#BB1919] border-[#BB1919] shadow-2xs'
+                          : 'bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-300'
                       }`}
                     >
-                      <span>{p.name}</span>
-                      <span className="text-[10px] font-mono text-stone-400">{p.badge}</span>
+                      <span className="truncate">{p.name}</span>
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded-2xs bg-stone-200/80 text-stone-700">{p.badge}</span>
                     </button>
                   ))}
                 </div>

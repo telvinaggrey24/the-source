@@ -63,7 +63,7 @@ export const CategoryArchive: React.FC<CategoryArchiveProps> = ({ categorySlug }
                 className="hover:opacity-80 transition-opacity cursor-pointer flex items-center gap-1.5"
               >
                 <img
-                  src="/assets/logo.png"
+                  src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                   alt="The Source"
                   className="h-7 w-auto object-contain bg-white rounded px-1.5 py-0.5 shadow-2xs"
                 />

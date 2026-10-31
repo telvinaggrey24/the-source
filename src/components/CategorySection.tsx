@@ -32,10 +32,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
     )
     .slice(0, 4);
 
-  const displayArticles =
-    categoryArticles.length > 0
-      ? categoryArticles
-      : articles.filter(a => a.status === 'published').slice(1, 5);
+  const displayArticles = categoryArticles;
 
   if (displayArticles.length === 0) return null;
 

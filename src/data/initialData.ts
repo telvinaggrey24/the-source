@@ -1084,7 +1084,7 @@ export const INITIAL_APPEARANCE_SETTINGS: WebsiteAppearanceSettings = {
   siteName: 'THE SOURCE',
   siteTagline: 'REAL NEWS • REAL PEOPLE • REAL IMPACT',
   siteLogoText: 'THE SOURCE',
-  siteLogoUrl: '/assets/logo.png',
+  siteLogoUrl: '/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png',
   primaryColor: '#BB1919',
   breakingNewsEnabled: true,
   breakingNewsTicker: 'PARLIAMENT IN DODOMA ENACTS HEALTHCARE REFORM /// SGR FREIGHT FLEET EXPANDS CENTRAL TRADE CORRIDOR /// TAIFA STARS QUALIFY FOR CONTINENTAL FINALS',
@@ -1096,10 +1096,10 @@ export const INITIAL_APPEARANCE_SETTINGS: WebsiteAppearanceSettings = {
     youtube: 'https://youtube.com',
     linkedin: 'https://linkedin.com',
     instagram: 'https://instagram.com',
-    whatsapp: 'https://wa.me/255754112000',
+    whatsapp: 'https://wa.me/255622754599',
   },
   contactEmail: 'editor@thesource.co.tz',
-  contactPhone: '+255 22 211 4500',
+  contactPhone: '+255 622 754 599',
   newsroomAddress: 'The Source Tower, Samora Avenue, Financial District, Dar es Salaam, Tanzania',
 };
 

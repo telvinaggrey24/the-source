@@ -13,6 +13,9 @@ import {
   Lock,
   Download,
   Share2,
+  Mail,
+  Phone,
+  MessageCircle,
 } from 'lucide-react';
 
 export const DonateSection: React.FC = () => {
@@ -23,7 +26,7 @@ export const DonateSection: React.FC = () => {
   const [currency, setCurrency] = useState<'TZS' | 'USD'>('TZS');
   const [selectedAmount, setSelectedAmount] = useState<number>(10000);
   const [customAmount, setCustomAmount] = useState<string>('');
-  const [provider, setProvider] = useState<'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'card'>('mpesa');
+  const [provider, setProvider] = useState<'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'card' | 'selcom'>('selcom');
 
   // Donor Details
   const [donorName, setDonorName] = useState(currentUser?.name || '');
@@ -35,19 +38,22 @@ export const DonateSection: React.FC = () => {
   const [ussdPromptActive, setUssdPromptActive] = useState(false);
   const [completedDonation, setCompletedDonation] = useState<any | null>(null);
 
-  const tzsPresets = [5000, 10000, 25000, 50000, 100000];
-  const usdPresets = [5, 10, 25, 50, 100];
+  const tzsPresets = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
+  const usdPresets = [5, 10, 25, 50, 100, 250, 500];
   const activePresets = currency === 'TZS' ? tzsPresets : usdPresets;
 
   const currentTotal = customAmount ? parseFloat(customAmount) || 0 : selectedAmount;
 
   const handleDonateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTotal || currentTotal <= 0) return;
+    if (!currentTotal || currentTotal < 1 || (currency === 'TZS' && currentTotal > 1000000)) {
+      alert('Tafadhali chagua au weka kiwango kati ya 1 na 1,000,000 TZS');
+      return;
+    }
 
     setIsProcessing(true);
 
-    if (['mpesa', 'tigopesa', 'airtel', 'halopesa'].includes(provider)) {
+    if (['mpesa', 'tigopesa', 'airtel', 'halopesa', 'selcom'].includes(provider)) {
       // Simulate mobile money USSD push
       setUssdPromptActive(true);
       setTimeout(() => {
@@ -86,7 +92,7 @@ export const DonateSection: React.FC = () => {
     <section
       id="donate-section"
       className="w-full bg-[#1A0505] text-white border-t-4 border-[#BB1919] font-sans py-12 lg:py-16 relative overflow-hidden"
-      aria-label="Support Digital Daily Journalism"
+      aria-label="Support Daily Update Journalism"
     >
       {/* Subtle background graphic */}
       <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#BB1919]/10 rounded-full blur-3xl pointer-events-none" />
@@ -265,12 +271,36 @@ export const DonateSection: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Short Contact & Hotline Strip */}
+                  <div className="bg-stone-900/90 border border-stone-800 rounded-xs p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-stone-300">
+                      <Phone className="w-3.5 h-3.5 text-[#BB1919]" />
+                      <span className="text-stone-400">Desk:</span>
+                      <a href="tel:+255622754599" className="font-bold text-white hover:text-red-400 font-mono">
+                        +255 622 754 599
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-stone-300">
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-stone-400">WhatsApp:</span>
+                      <a href="https://wa.me/255622754599" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-400 hover:underline font-mono">
+                        622754599
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-stone-300">
+                      <Mail className="w-3.5 h-3.5 text-stone-400" />
+                      <a href="mailto:telvinaggrey24@gmail.com" className="font-bold text-white hover:text-red-400">
+                        telvinaggrey24@gmail.com
+                      </a>
+                    </div>
+                  </div>
+
                   {/* Preset Amount Pills */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">
-                      Chagua Kiasi cha Mchango (Amount):
+                      Chagua Kiasi cha Mchango (1 - 1,000,000 TZS):
                     </label>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                       {activePresets.map(amt => (
                         <button
                           key={amt}
@@ -279,18 +309,18 @@ export const DonateSection: React.FC = () => {
                             setSelectedAmount(amt);
                             setCustomAmount('');
                           }}
-                          className={`py-2.5 text-xs font-bold font-mono rounded-xs border transition-all cursor-pointer text-center ${
+                          className={`py-2 text-[11px] font-bold font-mono rounded-xs border transition-all cursor-pointer text-center ${
                             selectedAmount === amt && !customAmount
                               ? 'bg-[#BB1919] text-white border-[#BB1919] ring-2 ring-red-500/30'
                               : 'bg-stone-900 text-stone-300 border-stone-800 hover:border-stone-600'
                           }`}
                         >
-                          {currency === 'TZS' ? `${amt.toLocaleString()} TZS` : `$${amt}`}
+                          {currency === 'TZS' ? `${amt >= 1000000 ? '1M' : amt >= 1000 ? `${amt / 1000}k` : amt}` : `$${amt}`}
                         </button>
                       ))}
                     </div>
 
-                    {/* Custom Amount */}
+                    {/* Custom Amount with 1 - 1,000,000 Range */}
                     <div className="mt-2.5">
                       <div className="relative">
                         <span className="absolute left-3 top-2.5 text-xs font-mono font-bold text-stone-500">
@@ -299,7 +329,8 @@ export const DonateSection: React.FC = () => {
                         <input
                           type="number"
                           min="1"
-                          placeholder="Weka kiasi kingine (Custom amount)..."
+                          max={currency === 'TZS' ? 1000000 : 1000}
+                          placeholder={`Weka kiasi chochote (1 hadi ${currency === 'TZS' ? '1,000,000' : '1,000'})...`}
                           value={customAmount}
                           onChange={e => {
                             setCustomAmount(e.target.value);
@@ -308,16 +339,20 @@ export const DonateSection: React.FC = () => {
                           className="w-full pl-14 pr-4 py-2 text-xs bg-stone-900 border border-stone-800 rounded-xs text-white placeholder:text-stone-500 focus:outline-hidden focus:border-[#BB1919] font-mono"
                         />
                       </div>
+                      <span className="text-[10px] text-stone-400 mt-1 block">
+                        Kiwango chochote kuanzia 1 hadi 1,000,000 TZS kinaruhusiwa
+                      </span>
                     </div>
                   </div>
 
-                  {/* Payment Method Providers */}
+                  {/* Payment Method Providers with Selcom */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">
                       Njia ya Malipo (Payment Method):
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
+                        { id: 'selcom', name: 'Selcom Pay', badge: 'SELCOM', color: 'text-orange-400' },
                         { id: 'mpesa', name: 'Vodacom M-Pesa', badge: 'M-PESA', color: 'text-red-400' },
                         { id: 'tigopesa', name: 'Tigo Pesa', badge: 'TIGO', color: 'text-blue-400' },
                         { id: 'airtel', name: 'Airtel Money', badge: 'AIRTEL', color: 'text-rose-400' },
@@ -335,7 +370,7 @@ export const DonateSection: React.FC = () => {
                               : 'bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700'
                           }`}
                         >
-                          <span>{p.name}</span>
+                          <span className="truncate">{p.name}</span>
                           <span className={`text-[10px] font-mono font-bold ${p.color}`}>{p.badge}</span>
                         </button>
                       ))}

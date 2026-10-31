@@ -74,6 +74,14 @@ interface NewsContextType {
 
   // User Management & RBAC
   registeredUsers: UserProfile[];
+  createStaffUser: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: UserRole;
+    staffTitle?: string;
+    avatar?: string;
+  }) => UserProfile;
   updateUserRole: (userId: string, newRole: UserRole) => void;
   toggleUserStatus: (userId: string) => void;
   deleteUser: (userId: string) => void;
@@ -116,8 +124,8 @@ interface NewsContextType {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   currentUser: UserProfile | null;
-  loginWithPhone: (phone: string, name?: string) => UserProfile;
-  loginWithEmail: (email: string, name?: string) => UserProfile;
+  loginWithPhone: (phone: string, name?: string, additionalDetails?: { email?: string; location?: string; country?: string }) => UserProfile;
+  loginWithEmail: (email: string, name?: string, additionalDetails?: { phone?: string; location?: string; country?: string }) => UserProfile;
   logoutUser: () => void;
 
   // Donations
@@ -165,13 +173,13 @@ const STORAGE_KEYS = {
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
 
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Articles state
+  // Articles state (Dynamic real database storage)
   const [articles, setArticles] = useState<Article[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.ARTICLES);
-      if (stored) {
-        const parsed: Article[] = JSON.parse(stored);
-        if (parsed.length >= INITIAL_ARTICLES.length && parsed[0]?.titleEnglish) {
+      if (stored !== null) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
@@ -182,7 +190,26 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   // Authors state
-  const [authors] = useState<Author[]>(INITIAL_AUTHORS);
+  const [authors, setAuthors] = useState<Author[]>(() => {
+    try {
+      const stored = localStorage.getItem('the_source_authors_v2');
+      if (stored !== null) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return INITIAL_AUTHORS;
+    } catch {
+      return INITIAL_AUTHORS;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('the_source_authors_v2', JSON.stringify(authors));
+    } catch {}
+  }, [authors]);
 
   const getAuthorById = (id: string): Author | undefined => {
     return (
@@ -198,17 +225,13 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Categories state
+  // Categories state (Dynamic real database storage)
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      if (stored) {
+      if (stored !== null) {
         const parsed: Category[] = JSON.parse(stored);
-        // Verify it contains the new required categories (business, politics, football, etc.)
-        const hasBusiness = parsed.some(c => c.slug === 'business');
-        const hasFootball = parsed.some(c => c.slug === 'football');
-        const hasInternational = parsed.some(c => c.slug === 'international');
-        if (hasBusiness && hasFootball && hasInternational) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
@@ -257,7 +280,20 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [appearanceSettings, setAppearanceSettings] = useState<WebsiteAppearanceSettings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.APPEARANCE);
-      return stored ? JSON.parse(stored) : INITIAL_APPEARANCE_SETTINGS;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...INITIAL_APPEARANCE_SETTINGS,
+          ...parsed,
+          contactPhone: parsed.contactPhone && parsed.contactPhone !== '+255 22 211 4500' ? parsed.contactPhone : '+255 622 754 599',
+          socialLinks: {
+            ...INITIAL_APPEARANCE_SETTINGS.socialLinks,
+            ...(parsed.socialLinks || {}),
+            whatsapp: 'https://wa.me/255622754599',
+          },
+        };
+      }
+      return INITIAL_APPEARANCE_SETTINGS;
     } catch {
       return INITIAL_APPEARANCE_SETTINGS;
     }
@@ -589,9 +625,27 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Article CRUD & Controls
   const addArticle = (data: Omit<Article, 'id' | 'viewsCount' | 'reactions' | 'comments'>): Article => {
+    const adminAuthor = currentAdminUser
+      ? {
+          id: currentAdminUser.id,
+          name: currentAdminUser.name,
+          email: currentAdminUser.email || '',
+          role: currentAdminUser.role || 'admin',
+        }
+      : {
+          id: 'usr_telvin',
+          name: 'Telvin Aggrey (Super Admin)',
+          email: 'telvinaggrey24@gmail.com',
+          role: 'admin',
+        };
+
     const newArticle: Article = {
       ...data,
-      id: `art_${Date.now()}`,
+      id: `art_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      publishedAt: data.publishedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: data.createdBy || adminAuthor,
+      lastEditedBy: adminAuthor,
       viewsCount: 1,
       reactions: {
         insightful: 0,
@@ -603,22 +657,41 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       commentsEnabled: data.commentsEnabled !== false,
     };
     setArticles(prev => [newArticle, ...prev]);
-    logAdminActivity('Created Article', newArticle.title, 'article', `Category: ${newArticle.categoryName}, Status: ${newArticle.status}`);
+    logAdminActivity(
+      'Created Article',
+      newArticle.title,
+      'article',
+      `Category: ${newArticle.categoryName}, Author: ${newArticle.author?.name || 'Staff'}, Status: ${newArticle.status}`
+    );
     return newArticle;
   };
 
   const updateArticle = (id: string, updates: Partial<Article>) => {
+    const adminAuthor = currentAdminUser
+      ? {
+          id: currentAdminUser.id,
+          name: currentAdminUser.name,
+          email: currentAdminUser.email || '',
+          role: currentAdminUser.role || 'admin',
+        }
+      : undefined;
+
     setArticles(prev =>
       prev.map(art => {
         if (art.id === id) {
-          const updated = { ...art, ...updates, updatedAt: new Date().toISOString() };
+          const updated: Article = {
+            ...art,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+            lastEditedBy: adminAuthor || art.lastEditedBy,
+          };
           return updated;
         }
         return art;
       })
     );
     const target = articles.find(a => a.id === id)?.title || id;
-    logAdminActivity('Updated Article', target, 'article', `Modified fields: ${Object.keys(updates).join(', ')}`);
+    logAdminActivity('Updated Article', target, 'article', `Modified by ${adminAuthor?.name || 'Administrator'}`);
   };
 
   const deleteArticle = (id: string) => {
@@ -784,6 +857,64 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // User Management & RBAC
+  const createStaffUser = (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: UserRole;
+    staffTitle?: string;
+    avatar?: string;
+  }): UserProfile => {
+    const newUser: UserProfile = {
+      id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: data.role,
+      staffTitle: data.staffTitle,
+      avatar:
+        data.avatar ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+      status: 'active',
+      isSubscriber: true,
+      isDonor: false,
+      registeredAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+    };
+
+    setRegisteredUsers(prev => [newUser, ...prev]);
+
+    // If staff/editor/admin/journalist, also register as newsroom author so they can publish under their byline
+    if (data.role !== 'reader') {
+      const existingAuthor = authors.find(
+        a =>
+          a.name.toLowerCase() === data.name.toLowerCase() ||
+          (data.email && a.email?.toLowerCase() === data.email.toLowerCase())
+      );
+      if (!existingAuthor) {
+        const newAuthor: Author = {
+          id: `author-${Date.now()}`,
+          name: data.name,
+          title: data.staffTitle || (data.role === 'admin' ? 'Chief Editor & Administrator' : 'Staff Journalist'),
+          avatar: newUser.avatar!,
+          bio: `${data.name} is a staff journalist and editor at THE SOURCE newsroom covering East Africa.`,
+          email: data.email,
+          joinedYear: String(new Date().getFullYear()),
+          specialties: ['National News', 'Public Interest'],
+        };
+        setAuthors(prev => [...prev, newAuthor]);
+      }
+    }
+
+    logAdminActivity(
+      `Added Staff Member (${data.role})`,
+      data.name,
+      'user',
+      `Email: ${data.email}, Title: ${data.staffTitle || data.role}`
+    );
+    return newUser;
+  };
+
   const updateUserRole = (userId: string, newRole: UserRole) => {
     setRegisteredUsers(prev =>
       prev.map(u => {
@@ -1003,11 +1134,18 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Reader Phone / Email Login
-  const loginWithPhone = (phone: string, name?: string): UserProfile => {
+  const loginWithPhone = (
+    phone: string,
+    name?: string,
+    additionalDetails?: { email?: string; location?: string; country?: string }
+  ): UserProfile => {
     const profile: UserProfile = {
       id: `usr_${Date.now()}`,
       name: name?.trim() || `Reader (${phone.replace(/\s+/g, '').slice(-4)})`,
       phone: phone.trim(),
+      email: additionalDetails?.email?.trim().toLowerCase() || undefined,
+      location: additionalDetails?.location?.trim() || undefined,
+      country: additionalDetails?.country?.trim() || undefined,
       role: 'reader',
       status: 'active',
       isSubscriber: true,
@@ -1021,11 +1159,18 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return profile;
   };
 
-  const loginWithEmail = (email: string, name?: string): UserProfile => {
+  const loginWithEmail = (
+    email: string,
+    name?: string,
+    additionalDetails?: { phone?: string; location?: string; country?: string }
+  ): UserProfile => {
     const profile: UserProfile = {
       id: `usr_${Date.now()}`,
       name: name?.trim() || email.split('@')[0],
       email: email.trim().toLowerCase(),
+      phone: additionalDetails?.phone?.trim() || undefined,
+      location: additionalDetails?.location?.trim() || undefined,
+      country: additionalDetails?.country?.trim() || undefined,
       role: 'reader',
       status: 'active',
       isSubscriber: true,
@@ -1228,6 +1373,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteMediaItem,
         updateMediaItem,
         registeredUsers,
+        createStaffUser,
         updateUserRole,
         toggleUserStatus,
         deleteUser,

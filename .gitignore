@@ -4,8 +4,8 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env
-.env.local
-.env.*.local
-.vercel
-.aistudio
+.env*
+!.env.example
+!.env.development
+!.env.production
+.aistudio/

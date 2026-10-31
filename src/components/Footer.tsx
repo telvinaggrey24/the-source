@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNews } from '../context/NewsContext';
 import { AdBanner } from './AdBanner';
-import { Mail, Phone, MapPin, Shield, CheckCircle, Radio, Video, CloudSun, Heart, User } from 'lucide-react';
+import { Mail, Phone, MapPin, Shield, CheckCircle, Radio, Video, CloudSun, Heart, User, MessageCircle } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const { categories, activeCategories, setView, language, setIsDonateModalOpen, setIsAuthModalOpen, appearanceSettings } = useNews();
@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="bg-white p-1.5 rounded shadow-sm">
               <img
-                src="/assets/logo.png"
+                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                 alt="THE SOURCE"
                 className="h-9 sm:h-11 w-auto object-contain"
               />
@@ -190,20 +190,32 @@ export const Footer: React.FC = () => {
             <span className="text-[11px] uppercase tracking-wider text-stone-300 font-bold">Newsroom Desk:</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-stone-300">
+          <div className="flex flex-wrap items-center gap-3 text-stone-300">
             <a
-              href={`tel:${appearanceSettings?.contactPhone || '+255222114500'}`}
-              className="flex items-center gap-1.5 px-3 py-1 bg-stone-900 hover:bg-stone-800 border border-stone-700/80 rounded-2xs text-stone-200 transition-colors"
+              href="tel:+255622754599"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-700/80 rounded-2xs text-stone-200 transition-colors"
             >
               <Phone className="w-3.5 h-3.5 text-[#BB1919]" />
-              <span>Desk: {appearanceSettings?.contactPhone || '+255 22 211 4500'}</span>
+              <span>Desk: +255 622 754 599</span>
             </a>
+
             <a
-              href={`mailto:${appearanceSettings?.contactEmail || 'newsroom@thesun.co.tz'}`}
-              className="flex items-center gap-1.5 px-3 py-1 bg-stone-900 hover:bg-stone-800 border border-stone-700/80 rounded-2xs text-stone-200 transition-colors"
+              href="https://wa.me/255622754599"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/50 hover:bg-emerald-900/70 border border-emerald-500/50 rounded-2xs text-emerald-300 transition-colors"
+              title="Chat with Newsroom Desk on WhatsApp (+255 622 754 599)"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+              <span>WhatsApp: 622754599</span>
+            </a>
+
+            <a
+              href="mailto:telvinaggrey24@gmail.com"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-700/80 rounded-2xs text-stone-200 transition-colors"
             >
               <Mail className="w-3.5 h-3.5 text-stone-400" />
-              <span>{appearanceSettings?.contactEmail || 'newsroom@thesun.co.tz'}</span>
+              <span>telvinaggrey24@gmail.com</span>
             </a>
           </div>
         </div>
@@ -211,7 +223,7 @@ export const Footer: React.FC = () => {
         {/* Legal & Trust Disclosures */}
         <div className="pt-4 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-stone-500">
           <p>
-            &copy; {new Date().getFullYear()} {siteName} Media Group. Digital Daily Only.
+            &copy; {new Date().getFullYear()} {siteName} Media Group. Daily Update.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">

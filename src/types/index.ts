@@ -73,6 +73,10 @@ export interface Article {
   reactions: ArticleReactions;
   comments: ArticleComment[];
   commentsEnabled?: boolean;
+  videoUrl?: string;
+  imageGallery?: string[];
+  createdBy?: { id?: string; name: string; email: string; role?: string };
+  lastEditedBy?: { id?: string; name: string; email: string; role?: string };
   seoMetaTitle?: string;
   seoMetaDescription?: string;
   seoCanonicalUrl?: string;
@@ -124,7 +128,7 @@ export type ViewState =
   | { type: 'page'; pageId: 'about' | 'contact' | 'policy' | 'privacy' | 'terms' | 'jobs' | 'verify' | 'video' | 'audio' | 'weather' | 'job-and-health' }
   | { type: 'admin' };
 
-export type UserRole = 'admin' | 'editor' | 'reader';
+export type UserRole = 'admin' | 'editor' | 'journalist' | 'staff' | 'reader';
 export type UserStatus = 'active' | 'suspended';
 
 export interface UserProfile {
@@ -132,7 +136,10 @@ export interface UserProfile {
   name: string;
   phone?: string;
   email?: string;
+  location?: string;
+  country?: string;
   role?: UserRole;
+  staffTitle?: string;
   status?: UserStatus;
   isSubscriber: boolean;
   isDonor: boolean;
@@ -148,7 +155,7 @@ export interface DonationRecord {
   amount: number;
   currency: 'TZS' | 'USD';
   frequency: 'one_off' | 'monthly';
-  provider: 'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'nmb' | 'card';
+  provider: 'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'crdb' | 'nmb' | 'card' | 'selcom';
   message?: string;
   timestamp: string;
   status: 'completed' | 'processing';
@@ -174,6 +181,10 @@ export interface WebsiteAppearanceSettings {
   breakingNewsEnabled: boolean;
   breakingNewsTicker: string;
   featuredStoryId?: string;
+  homepageCategoryOrder?: string[];
+  homepageHeroLayout?: 'standard' | 'magazine' | 'compact';
+  showVideoSection?: boolean;
+  showVerifyBanner?: boolean;
   footerBio: string;
   socialLinks: {
     twitter: string;

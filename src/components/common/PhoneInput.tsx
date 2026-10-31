@@ -99,6 +99,7 @@ interface PhoneInputProps {
   autoFocus?: boolean;
   showQuickPresets?: boolean;
   className?: string;
+  forcedCountryCode?: string;
 }
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
@@ -111,11 +112,29 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   autoFocus = false,
   showQuickPresets = true,
   className = '',
+  forcedCountryCode,
 }) => {
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>(SUPPORTED_COUNTRIES[0]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [nationalNumber, setNationalNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+
+  // Sync forcedCountryCode from WorldMap or parent
+  useEffect(() => {
+    if (forcedCountryCode) {
+      const matched = SUPPORTED_COUNTRIES.find(
+        c => c.code === forcedCountryCode || c.dialCode === forcedCountryCode
+      );
+      if (matched && matched.code !== selectedCountry.code) {
+        setSelectedCountry(matched);
+        if (nationalNumber) {
+          const clean = nationalNumber.replace(/\D/g, '');
+          const isValid = clean.length >= matched.digitsLength - 1;
+          onChange(`${matched.dialCode} ${nationalNumber}`, clean, isValid);
+        }
+      }
+    }
+  }, [forcedCountryCode]);
 
   // Initialize or update from value prop
   useEffect(() => {
@@ -132,7 +151,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     } else {
       setNationalNumber(formatDigits(value));
     }
-  }, []);
+  }, [value]);
 
   const formatDigits = (raw: string): string => {
     // strip non-digits

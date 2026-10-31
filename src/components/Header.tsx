@@ -97,7 +97,7 @@ export const Header: React.FC = () => {
               aria-label={`${appearanceSettings?.siteName || 'THE SOURCE'} Home`}
             >
               <img
-                src="/assets/logo.png"
+                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                 alt="The Source"
                 className="h-8 w-auto object-contain bg-white rounded-xs px-2 py-0.5 shadow-2xs group-hover:opacity-90 transition-opacity"
               />
@@ -207,14 +207,14 @@ export const Header: React.FC = () => {
           >
             <div className="bg-white p-2 rounded shadow-md border border-stone-200 shrink-0">
               <img
-                src="/assets/logo.png"
+                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                 alt="THE SOURCE — Real News • Real People • Real Impact"
                 className="h-12 sm:h-16 md:h-20 w-auto object-contain group-hover:scale-[1.01] transition-transform"
               />
             </div>
             <div className="text-center sm:text-left self-center">
               <span className="text-[11px] sm:text-xs text-red-500 font-black tracking-widest uppercase block">
-                Digital Daily Only
+                Daily Update
               </span>
               <span className="text-xs text-stone-300 font-medium tracking-tight">
                 Tanzania &bull; East Africa &bull; Global Affairs
@@ -225,24 +225,24 @@ export const Header: React.FC = () => {
           <div className="hidden lg:flex items-center gap-3 text-xs font-sans text-stone-300">
             {/* Phone hotline */}
             <a
-              href={`tel:${appearanceSettings.contactPhone.replace(/\s+/g, '')}`}
+              href="tel:+255622754599"
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-700/80 rounded-2xs text-[11px] font-mono tracking-tight transition-colors cursor-pointer text-stone-200 shadow-2xs"
               title="Newsroom Phone Hotline"
             >
               <Phone className="w-3.5 h-3.5 text-[#BB1919]" />
-              <span>{appearanceSettings.contactPhone}</span>
+              <span>Desk: +255 622 754 599</span>
             </a>
 
             {/* WhatsApp Tip Desk */}
             <a
-              href={appearanceSettings.socialLinks.whatsapp}
+              href="https://wa.me/255622754599"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 rounded-2xs text-[11px] font-mono tracking-tight text-emerald-300 transition-colors cursor-pointer shadow-2xs"
-              title="Confidential WhatsApp Tip Desk"
+              title="Confidential WhatsApp Tip Desk (+255 622 754 599)"
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-              <span>WhatsApp Tip Desk</span>
+              <span>WhatsApp: 622754599</span>
             </a>
 
             <span aria-hidden="true" className="text-stone-700">&bull;</span>
@@ -306,7 +306,7 @@ export const Header: React.FC = () => {
               {/* Drawer Header with Official Logo */}
               <div className="flex items-center justify-between pb-3 border-b border-stone-200">
                 <img
-                  src="/assets/logo.png"
+                  src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
                   alt="The Source"
                   className="h-9 w-auto object-contain bg-white rounded p-1 shadow-2xs"
                 />
@@ -399,6 +399,26 @@ export const Header: React.FC = () => {
 
             {/* Drawer Footer Actions */}
             <div className="border-t border-stone-200 pt-4 space-y-2">
+              {/* Quick Mobile Contact Strip */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <a
+                  href="tel:+255622754599"
+                  className="py-2 px-2 bg-stone-900 text-white rounded text-center font-bold flex items-center justify-center gap-1.5 text-[11px]"
+                >
+                  <Phone className="w-3.5 h-3.5 text-red-500" />
+                  <span>Desk: 622 754 599</span>
+                </a>
+                <a
+                  href="https://wa.me/255622754599"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-2 bg-emerald-600 text-white rounded text-center font-bold flex items-center justify-center gap-1.5 text-[11px]"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WA: 622754599</span>
+                </a>
+              </div>
+
               <button
                 onClick={() => {
                   setIsDonateModalOpen(true);

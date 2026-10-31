@@ -21,6 +21,8 @@ import {
   Flame,
   HelpCircle,
   ExternalLink,
+  Camera,
+  Video,
 } from 'lucide-react';
 import { getCategoryTheme } from '../utils/categoryTheme';
 
@@ -197,7 +199,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
             title="The Source Home"
           >
             <img
-              src="/assets/logo.png"
+              src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
               alt="The Source"
               className="h-7 w-auto object-contain bg-white rounded p-0.5 border border-stone-200"
             />
@@ -429,6 +431,35 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
           <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-stone-500 font-sans px-1">
             <span className="italic">{article.imageCaption}</span>
             <span className="text-[11px] font-mono text-stone-400 mt-1 sm:mt-0">{article.imageCredit}</span>
+          </div>
+        )}
+
+        {/* Embedded Video Player (YouTube or MP4) */}
+        {article.videoUrl && (
+          <div className="mt-5 rounded-xs overflow-hidden bg-stone-900 border border-stone-800 shadow-md">
+            <div className="p-2 bg-stone-950 text-stone-300 text-xs flex items-center gap-1.5 font-bold uppercase tracking-wider">
+              <Video className="w-3.5 h-3.5 text-red-500" />
+              <span>Video Ripoti / Story Broadcast</span>
+            </div>
+            {article.videoUrl.includes('youtube.com') || article.videoUrl.includes('youtu.be') ? (
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src={
+                    article.videoUrl.includes('watch?v=')
+                      ? article.videoUrl.replace('watch?v=', 'embed/').split('&')[0]
+                      : article.videoUrl.includes('youtu.be/')
+                      ? `https://www.youtube.com/embed/${article.videoUrl.split('youtu.be/')[1]?.split('?')[0]}`
+                      : article.videoUrl
+                  }
+                  title={article.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              </div>
+            ) : (
+              <video src={article.videoUrl} controls className="w-full aspect-video object-contain" />
+            )}
           </div>
         )}
       </div>
@@ -666,6 +697,42 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
               </div>
             </div>
           )}
+
+          {/* Photo Gallery (Optional Image Gallery) */}
+          {article.imageGallery && article.imageGallery.length > 0 && (
+            <div className="pt-6 border-t border-stone-200 mt-6">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-stone-900 mb-3 flex items-center gap-1.5">
+                <Camera className="w-4 h-4 text-red-600" />
+                <span>Picha Zaidi za Ripoti Hii (Photo Gallery)</span>
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {article.imageGallery.map((img, idx) => (
+                  <div key={idx} className="aspect-4/3 rounded-xs overflow-hidden bg-stone-100 border border-stone-200 group">
+                    <img
+                      src={img}
+                      alt={`Picha ${idx + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Editorial Audit & Publishing Verification Badge */}
+          <div className="mt-6 p-3 bg-stone-100 border-l-4 border-red-600 text-[11px] font-sans text-stone-600 rounded-r-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="font-bold text-stone-900 block">
+                Mchapishaji / Published by: {article.createdBy?.name || 'Super Admin (The Source)'}
+              </span>
+              <span className="text-stone-500 text-[10px]">
+                Ilihaririwa na: {article.lastEditedBy?.name || 'Chief Editor'} &bull; Kitengo: {article.categoryName}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold shrink-0">
+              Verified Article
+            </span>
+          </div>
 
           {/* Reader Interactive Reactions */}
           <div className="no-print mt-10 p-6 bg-stone-50 border border-stone-200 rounded-xs">

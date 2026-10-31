@@ -37,56 +37,100 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ pageId }) => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-      {/* 1. ABOUT US PAGE */}
+      {/* 1. ABOUT US PAGE — Unified Single Page Statement */}
       {pageId === 'about' && (
-        <div className="space-y-8 font-sans text-stone-800 text-base leading-relaxed">
-          <div className="border-b-2 border-stone-900 pb-4 mb-6">
-            <span className="text-xs font-sans font-bold uppercase tracking-widest text-[#BB1919] block mb-1">
-              Organization Profile
-            </span>
-            <h1 className="font-sans font-black text-3xl sm:text-4xl lg:text-5xl text-stone-950">
-              About The Sun
-            </h1>
-            <p className="text-sm font-sans text-stone-500 mt-2">
-              Sauti ya Ukweli na Maendeleo · Digital Daily Only
+        <div className="space-y-8 font-sans text-stone-800 text-base leading-relaxed bg-white border border-stone-200 p-6 sm:p-10 shadow-xs rounded-xs">
+          {/* Header Banner with Official Logo */}
+          <div className="border-b-2 border-[#BB1919] pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-[#BB1919] inline-block mb-1">
+                Taarifa Rasmi · Official Statement
+              </span>
+              <h1 className="font-sans font-black text-2xl sm:text-3xl lg:text-4xl text-stone-950 tracking-tight">
+                About THE SOURCE
+              </h1>
+              <p className="text-xs sm:text-sm font-sans text-stone-600 mt-1">
+                Sauti ya Ukweli na Maendeleo &bull; Daily Update &bull; Real News &bull; Real People &bull; Real Impact
+              </p>
+            </div>
+            <div className="bg-white p-2 border border-stone-200 rounded shadow-xs shrink-0 self-center sm:self-auto">
+              <img
+                src="/assets/aistudio/A3958EFB-B1A4-41D7-80AC-A616C4F046CD_7bd98d18.png"
+                alt="THE SOURCE"
+                className="h-12 sm:h-14 w-auto object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Mission Statement */}
+          <div className="p-5 bg-stone-50 border-l-4 border-[#BB1919] rounded-2xs text-stone-900">
+            <h2 className="text-sm font-black uppercase tracking-wider text-[#BB1919] mb-1">
+              Dhamira Yetu · Our Mission
+            </h2>
+            <p className="text-sm sm:text-base leading-relaxed font-serif text-stone-800">
+              <strong>THE SOURCE</strong> ni chombo huru cha habari cha kidijitali kinachoongoza kwa kutoa habari za uhakika, uchambuzi wa kina, na taarifa zilizothibitishwa kwa Kiswahili na Kiingereza. Tunatoa ripoti sahihi za Tanzania, Jumuiya ya Afrika Mashariki (EAC), na masuala ya kimataifa bila upendeleo wa kisiasa au kibiashara.
+            </p>
+            <p className="text-xs sm:text-sm text-stone-600 mt-2 font-sans italic">
+              "Dedicated to independent, fact-driven public interest journalism covering civic governance, economy, culture, and sports across East Africa."
             </p>
           </div>
 
-          <p className="first-letter:text-5xl first-letter:font-black first-letter:float-left first-letter:mr-3 first-letter:text-[#BB1919] text-lg text-stone-900">
-            The Sun is a digital daily news publishing organization patterned on the gold-standard editorial principles of international public broadcasting. Headquartered in Dar es Salaam with news desks in Dodoma, Arusha, Mwanza, and Zanzibar, our mission is to provide accurate, unbiased, and verified journalism covering Tanzania, the East African Community, and world affairs.
-          </p>
+          {/* Core Principles Grid */}
+          <div>
+            <h3 className="font-sans font-bold text-lg text-stone-950 pb-2 border-b border-stone-200 mb-4">
+              Misingi Mikuu ya Uhariri · Editorial Pillars
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-xs">
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xs">
+                <div className="font-bold text-[#BB1919] text-sm mb-1.5 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>1. Ukweli na Uhakiki</span>
+                </div>
+                <p className="text-stone-600 leading-normal">
+                  Kila ripoti inathibitishwa na vyanzo vya msingi vilivyoaminika kabla ya kuchapishwa. Hatuchapishi uvumi au taarifa zisizothibitishwa.
+                </p>
+              </div>
 
-          <h3 className="font-sans font-bold text-2xl text-stone-950 pt-4 border-b border-stone-200">
-            Our Core Principles
-          </h3>
-          <ul className="space-y-3 font-sans text-sm text-stone-700">
-            <li className="flex items-start gap-2">
-              <span className="text-[#BB1919] font-bold">1. Truth and Accuracy:</span>
-              <span>We do not publish unverified rumors. Every factual claim is corroborated by at least two verified primary sources.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-[#BB1919] font-bold">2. Public Interest & Impartiality:</span>
-              <span>We provide balanced reporting that gives voice to diverse perspectives without political patronage or corporate advertiser interference.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-[#BB1919] font-bold">3. Forensic Fact-Checking:</span>
-              <span>Through our Sun Verify unit, we actively combat disinformation across social networks.</span>
-            </li>
-          </ul>
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xs">
+                <div className="font-bold text-[#BB1919] text-sm mb-1.5 flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-blue-600" />
+                  <span>2. Uhuru wa Uhariri</span>
+                </div>
+                <p className="text-stone-600 leading-normal">
+                  Chumba chetu cha habari kiko huru kutoka kwa ushawishi wa kisiasa, kibiashara, au wa kibinafsi unaoweza kupotosha ukweli.
+                </p>
+              </div>
 
-          <h3 className="font-sans font-bold text-2xl text-stone-950 pt-4 border-b border-stone-200">
-            Newsroom Bureaus
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans text-xs text-stone-600">
-            <div className="p-4 bg-stone-50 border border-stone-200">
-              <h4 className="font-bold text-stone-900 text-sm mb-1">Dar es Salaam Main Newsroom</h4>
-              <p>Samora Avenue & Ohio Street, Central Business District</p>
-              <p className="mt-1 text-stone-500">Focus: Maritime trade, financial markets, tech startups, arts.</p>
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xs">
+                <div className="font-bold text-[#BB1919] text-sm mb-1.5 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                  <span>3. Uwazi na Lugha Mbili</span>
+                </div>
+                <p className="text-stone-600 leading-normal">
+                  Tunawasilisha habari zote kwa Kiswahili juu na Kiingereza chini ili kutoa fursa sawa ya kupata taarifa kwa wasomaji wote wa kanda.
+                </p>
+              </div>
             </div>
-            <div className="p-4 bg-stone-50 border border-stone-200">
-              <h4 className="font-bold text-stone-900 text-sm mb-1">Dodoma Legislative Bureau</h4>
-              <p>Parliament Square, Makole Ward, Dodoma</p>
-              <p className="mt-1 text-stone-500">Focus: National Assembly, policy reform, civil service recruitments.</p>
+          </div>
+
+          {/* Regional Desks & Newsroom Contacts */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans text-xs">
+            <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xs">
+              <h4 className="font-bold text-stone-900 text-sm mb-1">Bureaus & Coverage</h4>
+              <p className="text-stone-600">
+                <strong>Dar es Salaam Desk:</strong> Samora Avenue, CBD &bull; Finance, Maritime, Technology.<br />
+                <strong>Dodoma Bureau:</strong> Parliament Square &bull; Public Policy, Legislative, Utumishi.<br />
+                <strong>Regional Desks:</strong> Arusha (EAC Affairs), Mwanza (Lake Zone), Zanzibar (Blue Economy).
+              </p>
+            </div>
+
+            <div className="p-4 bg-stone-900 text-stone-200 rounded-2xs space-y-1.5">
+              <h4 className="font-bold text-white text-sm mb-1">Direct Newsroom Inquiries</h4>
+              <p className="text-stone-300">
+                <strong>Simu / Desk Phone:</strong> <a href="tel:+255622754599" className="text-white hover:underline font-mono">+255 622 754 599</a><br />
+                <strong>Barua Pepe / Email:</strong> <a href="mailto:telvinaggrey24@gmail.com" className="text-white hover:underline">telvinaggrey24@gmail.com</a><br />
+                <strong>WhatsApp Secure Desk:</strong> <a href="https://wa.me/255622754599" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-mono font-bold hover:underline">+255 622 754 599 (WA: 622754599)</a>
+              </p>
             </div>
           </div>
         </div>
@@ -122,8 +166,8 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ pageId }) => {
                   <Phone className="w-4 h-4 text-[#BB1919] shrink-0 mt-0.5" />
                   <div>
                     <strong className="block text-stone-900 text-sm">Phone Hotlines</strong>
-                    <span>+255 22 211 4500 (Newsroom Desk)</span>
-                    <span className="block text-stone-500">+255 754 112 000 (WhatsApp Secure Line)</span>
+                    <a href="tel:+255622754599" className="block text-stone-900 font-bold hover:text-red-700 font-mono">+255 622 754 599 (Newsroom Desk)</a>
+                    <a href="https://wa.me/255622754599" target="_blank" rel="noopener noreferrer" className="block text-emerald-700 font-bold hover:underline font-mono">+255 622 754 599 (WhatsApp: 622754599)</a>
                   </div>
                 </div>
 

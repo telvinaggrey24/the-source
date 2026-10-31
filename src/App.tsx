@@ -12,7 +12,6 @@ import { NewsletterSection } from './components/NewsletterSection';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { JobAndHealthPage } from './components/JobAndHealthPage';
 import { DonateSection } from './components/donate/DonateSection';
-import { StickyDonateBar } from './components/donate/StickyDonateBar';
 import { DonateModal } from './components/donate/DonateModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { AuthorProfilePage } from './components/AuthorProfilePage';
@@ -44,7 +43,7 @@ const AppContent: React.FC = () => {
           {view.type === 'admin' && <AdminDashboard />}
         </div>
 
-        {/* Donate Section Situated from the Down Side (above footer) */}
+        {/* Donate Section Situated above footer */}
         {view.type !== 'admin' && <DonateSection />}
       </div>
 
@@ -54,9 +53,6 @@ const AppContent: React.FC = () => {
       <NewsletterSection isModal={true} />
       <AuthModal />
       <DonateModal />
-
-      {/* Sticky Bottom Supporter Bar (Desktop) */}
-      {view.type !== 'admin' && <StickyDonateBar />}
 
       {/* Mobile Bottom Navigation Bar (Phone) */}
       <MobileBottomNav />
