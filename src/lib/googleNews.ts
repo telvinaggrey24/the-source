@@ -160,20 +160,27 @@ function extractItems(xml: string): Array<{
   return items;
 }
 
-async function fetchFeed(query: string): Promise<string> {
+async function fetchRss(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (compatible; TheSourceBot/1.0; +https://thesource.co.tz)',
+      Accept: 'application/rss+xml, application/xml, text/xml, */*',
+      'Accept-Language': 'en-TZ,en;q=0.9,sw;q=0.8',
+    },
+    redirect: 'follow',
+  });
+  if (!res.ok) {
+    throw new Error(`Google News RSS failed (${res.status})`);
+  }
+  return res.text();
+}
+
+async function fetchSearchFeed(query: string): Promise<string> {
   const url =
     `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
     `&hl=en-TZ&gl=TZ&ceid=TZ:en`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'THE-SOURCE/1.0 (+https://thesource.co.tz)',
-      Accept: 'application/rss+xml, application/xml, text/xml, */*',
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`Google News RSS failed (${res.status}) for ${query}`);
-  }
-  return res.text();
+  return fetchRss(url);
 }
 
 export function getWireAuthor(): Author {
@@ -183,15 +190,29 @@ export function getWireAuthor(): Author {
 export async function fetchGoogleNewsArticles(
   categories: Category[] = []
 ): Promise<Article[]> {
-  const xmlChunks = await Promise.all(
-    FEEDS.map(async feed => {
-      try {
-        return await fetchFeed(feed.query);
-      } catch {
-        return '';
-      }
-    })
-  );
+  const xmlChunks: string[] = [];
+
+  // Top stories for TZ first (most reliable)
+  try {
+    xmlChunks.push(
+      await fetchRss('https://news.google.com/rss?hl=en-TZ&gl=TZ&ceid=TZ:en')
+    );
+  } catch {
+    // continue with search feeds
+  }
+
+  // Sequential search feeds — fewer blocks than blasting 6 parallel requests
+  for (const feed of FEEDS) {
+    try {
+      xmlChunks.push(await fetchSearchFeed(feed.query));
+    } catch {
+      // skip failed feed
+    }
+  }
+
+  if (xmlChunks.every(x => !x)) {
+    throw new Error('All Google News feeds failed. Try again in a moment.');
+  }
 
   const seen = new Set<string>();
   const articles: Article[] = [];
@@ -273,7 +294,7 @@ export async function fetchGoogleNewsArticles(
     (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
   );
 
-  return articles.map((article, index) => ({
+  return articles.slice(0, 80).map((article, index) => ({
     ...article,
     isFeaturedHero: index === 0,
     isBreaking: index < 3,

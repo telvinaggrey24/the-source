@@ -9,7 +9,7 @@ export const BookmarksDrawer: React.FC = () => {
     bookmarks,
     toggleBookmark,
     articles,
-    setView,
+    openArticle,
     language,
   } = useNews();
 
@@ -59,8 +59,8 @@ export const BookmarksDrawer: React.FC = () => {
               >
                 <div
                   onClick={() => {
-                    setView({ type: 'article', slug: art.slug });
                     setIsBookmarksOpen(false);
+                    openArticle(art);
                   }}
                   className="flex-1 cursor-pointer min-w-0"
                 >

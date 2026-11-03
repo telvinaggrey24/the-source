@@ -101,6 +101,8 @@ interface NewsContextType {
   // Navigation & View
   view: ViewState;
   setView: (view: ViewState) => void;
+  /** Open CMS article in-app, or wire story on the publisher site (full text). */
+  openArticle: (articleOrSlug: Article | string) => void;
   bookmarks: string[];
   toggleBookmark: (articleId: string) => void;
   isBookmarked: (articleId: string) => boolean;
@@ -1138,6 +1140,19 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const openArticle = (articleOrSlug: Article | string) => {
+    const art =
+      typeof articleOrSlug === 'string'
+        ? articles.find(a => a.slug === articleOrSlug || a.id === articleOrSlug)
+        : articleOrSlug;
+    if (!art) return;
+    if (art.isWireStory && art.sourceUrl) {
+      window.location.assign(art.sourceUrl);
+      return;
+    }
+    setView({ type: 'article', slug: art.slug });
+  };
+
   const setLanguage = (lang: 'en' | 'sw') => {
     setLanguageState(lang);
     try {
@@ -1272,6 +1287,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateAd,
         view,
         setView,
+        openArticle,
         bookmarks,
         toggleBookmark,
         isBookmarked,

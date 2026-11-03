@@ -34,6 +34,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
   const {
     articles,
     setView,
+    openArticle,
     incrementViews,
     isBookmarked,
     toggleBookmark,
@@ -61,6 +62,12 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
   // Dual-language viewing mode (default: both Swahili on top & English down below)
   const [bilingualMode, setBilingualMode] = useState<'both' | 'swahili' | 'english'>('both');
 
+  // Full body for Google News wire items (fetched on open)
+  const [wireBody, setWireBody] = useState<string[] | null>(null);
+  const [wireLoading, setWireLoading] = useState(false);
+  const [wireError, setWireError] = useState<string | null>(null);
+  const [wireFinalUrl, setWireFinalUrl] = useState<string | null>(null);
+
   useEffect(() => {
     const handleScroll = () => {
       const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
@@ -82,6 +89,59 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
       window.scrollTo(0, 0);
     }
   }, [article?.id]);
+
+  useEffect(() => {
+    if (!article?.isWireStory || !article.sourceUrl) {
+      setWireBody(null);
+      setWireError(null);
+      setWireFinalUrl(null);
+      setWireLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setWireLoading(true);
+    setWireError(null);
+    setWireBody(null);
+    setWireFinalUrl(null);
+
+    fetch(`/api/full-story?url=${encodeURIComponent(article.sourceUrl)}`)
+      .then(async res => {
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !Array.isArray(data.paragraphs) || data.paragraphs.length === 0) {
+          setWireError(data.error || 'Could not load the full article text.');
+          setWireBody(null);
+          setWireFinalUrl(data.finalUrl || article.sourceUrl);
+          return;
+        }
+        setWireBody(data.paragraphs);
+        setWireFinalUrl(data.finalUrl || article.sourceUrl);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setWireError(err instanceof Error ? err.message : 'Could not load the full article text.');
+        setWireFinalUrl(article.sourceUrl);
+      })
+      .finally(() => {
+        if (!cancelled) setWireLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [article?.id, article?.isWireStory, article?.sourceUrl]);
+
+  // If full text cannot be extracted, send the reader to the publisher page
+  useEffect(() => {
+    if (!article?.isWireStory || !article.sourceUrl) return;
+    if (wireLoading || wireBody) return;
+    if (!wireError) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(wireFinalUrl || article.sourceUrl!);
+    }, 1600);
+    return () => window.clearTimeout(timer);
+  }, [article?.isWireStory, article?.sourceUrl, wireLoading, wireBody, wireError, wireFinalUrl]);
 
   // Audio playback timer simulation
   useEffect(() => {
@@ -468,24 +528,27 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         {/* Main Editorial Prose */}
         <div className="lg:col-span-8 max-w-prose">
-          {article.isWireStory && article.sourceUrl && (
-            <div className="no-print mb-6 p-4 bg-red-50 border border-red-200 rounded-xs">
-              <p className="text-xs font-sans text-stone-700 mb-3">
-                This is a live wire headline. Full reporting stays on the original publisher.
+          {article.isWireStory && (
+            <div className="no-print mb-6 p-4 bg-stone-50 border border-stone-200 rounded-xs">
+              <p className="text-xs font-sans text-stone-600 mb-3">
+                Live wire story via {article.author?.name || 'publisher'}. Full text is loaded below when available.
               </p>
-              <a
-                href={article.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded-xs transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Read full story on {article.author?.name || 'publisher'}
-              </a>
+              {(wireFinalUrl || article.sourceUrl) && (
+                <a
+                  href={wireFinalUrl || article.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded-xs transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open on publisher site
+                </a>
+              )}
             </div>
           )}
 
-          {/* Bilingual Reading Mode Selector */}
+          {/* Bilingual Reading Mode Selector — original CMS articles only */}
+          {!article.isWireStory && (
           <div className="no-print mb-6 p-2.5 bg-stone-100 border border-stone-200 rounded-xs flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 font-sans font-semibold text-stone-700">
               <span className="w-2 h-2 rounded-full bg-[#BB1919]" />
@@ -498,7 +561,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                   bilingualMode === 'both' ? 'bg-[#BB1919] text-white shadow-2xs' : 'bg-white text-stone-700 hover:bg-stone-200'
                 }`}
               >
-                🌐 Kiswahili (Juu) &bull; English (Chini)
+                Kiswahili (top) · English (below)
               </button>
               <button
                 onClick={() => setBilingualMode('swahili')}
@@ -506,7 +569,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                   bilingualMode === 'swahili' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
                 }`}
               >
-                🇹🇿 Kiswahili Tu
+                Kiswahili only
               </button>
               <button
                 onClick={() => setBilingualMode('english')}
@@ -514,10 +577,11 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                   bilingualMode === 'english' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
                 }`}
               >
-                🇬🇧 English Only
+                English only
               </button>
             </div>
           </div>
+          )}
 
           {/* Key Takeaways Callout Box */}
           {article.keyTakeaways && article.keyTakeaways.length > 0 && (
@@ -569,7 +633,41 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
           {/* Body paragraphs */}
           <div className={`font-editorial-body text-stone-900 ${textSizeClasses} space-y-6`}>
-            {article.content.map((paragraph, index) => {
+            {article.isWireStory && wireLoading && (
+              <div className="py-10 text-center">
+                <div className="mx-auto mb-3 h-7 w-7 border-2 border-red-700 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm font-semibold text-stone-700">Loading full article…</p>
+                <p className="text-xs text-stone-500 mt-1">Fetching the complete report from the publisher</p>
+              </div>
+            )}
+
+            {article.isWireStory && !wireLoading && wireError && (
+              <div className="p-4 border border-amber-300 bg-amber-50 text-sm text-stone-800 rounded-xs space-y-3">
+                <p>{wireError}</p>
+                <p className="text-xs text-stone-600">
+                  Some publishers block automated reading. Use the button above to open the original page.
+                </p>
+                {(wireFinalUrl || article.sourceUrl) && (
+                  <a
+                    href={wireFinalUrl || article.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-red-700 font-bold uppercase text-xs hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Continue on publisher site
+                  </a>
+                )}
+              </div>
+            )}
+
+            {article.isWireStory && !wireLoading && wireBody && wireBody.map((paragraph, index) => (
+              <p key={`wire-${index}`} className="leading-relaxed">
+                {paragraph}
+              </p>
+            ))}
+
+            {!article.isWireStory && article.content.map((paragraph, index) => {
               const paragraphEn = article.contentEnglish?.[index];
 
               // Subheading
@@ -694,6 +792,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
           {/* In-Article Ad Banner */}
           <AdBanner slot="in_article_mid" />
+
 
           {/* Article Tags */}
           {article.tags && article.tags.length > 0 && (
@@ -901,7 +1000,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                 {relatedArticles.map(rel => (
                   <div
                     key={rel.id}
-                    onClick={() => setView({ type: 'article', slug: rel.slug })}
+                    onClick={() => openArticle(rel)}
                     className="pt-3 first:pt-0 group cursor-pointer"
                   >
                     <span className="text-[10px] font-sans font-semibold text-red-700 uppercase tracking-wide block mb-1">

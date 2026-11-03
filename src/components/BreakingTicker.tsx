@@ -3,7 +3,7 @@ import { useNews } from '../context/NewsContext';
 import { ChevronRight, ChevronLeft, Pause, Play } from 'lucide-react';
 
 export const BreakingTicker: React.FC = () => {
-  const { articles, setView, language, appearanceSettings } = useNews();
+  const { articles, openArticle, language, appearanceSettings } = useNews();
 
   if (appearanceSettings?.breakingNewsEnabled === false) return null;
 
@@ -48,7 +48,7 @@ export const BreakingTicker: React.FC = () => {
             {duplicatedItems.map((item, idx) => (
               <button
                 key={`${item.id}-${idx}`}
-                onClick={() => setView({ type: 'article', slug: item.slug })}
+                onClick={() => openArticle(item)}
                 className="inline-flex items-center gap-2 text-xs sm:text-sm text-stone-200 hover:text-red-400 hover:underline transition-colors cursor-pointer whitespace-nowrap shrink-0 group"
               >
                 <span className="text-[#BB1919] font-black group-hover:text-red-300">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNews } from '../context/NewsContext';
 import { ArticleCard } from './ArticleCard';
-import { ArrowRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface CategorySectionProps {
   categorySlug: string;
@@ -14,12 +14,10 @@ interface CategorySectionProps {
 export const CategorySection: React.FC<CategorySectionProps> = ({
   categorySlug,
   title,
-  subtitle,
   layout = 'grid',
 }) => {
   const { articles, setView, language } = useNews();
 
-  // Articles for this category
   const categoryArticles = articles
     .filter(
       a =>
@@ -27,52 +25,44 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
         (a.categoryId === `cat_${categorySlug}` ||
           a.categoryId === categorySlug ||
           a.categoryName.toLowerCase() === categorySlug.toLowerCase() ||
-          a.categoryId.includes(categorySlug.replace('-news', '')) ||
           a.categoryName.toLowerCase().includes(categorySlug.replace(/-/g, ' ')))
     )
-    .slice(0, 4);
+    .slice(0, 5);
 
-  const displayArticles = categoryArticles;
+  if (categoryArticles.length === 0) return null;
 
-  if (displayArticles.length === 0) return null;
-
-  const leadArticle = displayArticles[0];
-  const remainingArticles = displayArticles.slice(1, 4);
+  const lead = categoryArticles[0];
+  const rest = categoryArticles.slice(1);
 
   return (
-    <section className="py-6 border-b border-stone-200" aria-label={title}>
-      {/* BBC Section Header */}
-      <div className="flex items-center justify-between pb-2 mb-4 border-b-2 border-stone-900">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-6 bg-[#BB1919] inline-block" />
-          <h2 className="font-sans font-black text-xl sm:text-2xl text-stone-950 uppercase tracking-tight">
-            {title}
-          </h2>
-        </div>
-
+    <section className="py-5 sm:py-6" aria-label={title}>
+      <div className="flex items-center justify-between border-b border-[#121212] pb-2 mb-4">
+        <h2 className="font-bbc-headline text-[1.35rem] sm:text-[1.5rem] font-bold text-[#121212]">
+          {title}
+        </h2>
         <button
           onClick={() => setView({ type: 'category', categorySlug })}
-          className="text-xs font-sans font-bold text-[#BB1919] hover:underline flex items-center gap-1 uppercase tracking-wider cursor-pointer"
+          className="text-[0.8rem] font-bold text-[#121212] hover:text-[#BB1919] inline-flex items-center gap-0.5 cursor-pointer"
         >
-          <span>{language === 'sw' ? 'Tazama Zote' : 'See all'}</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          {language === 'sw' ? 'Zaidi' : 'More'}
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
       {layout === 'featured-left' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7">
-            <ArticleCard article={leadArticle} variant="standard" />
+            <ArticleCard article={lead} variant="standard" />
           </div>
-          <div className="lg:col-span-5 space-y-4 flex flex-col justify-between">
-            {remainingArticles.map(art => (
+          <div className="lg:col-span-5 divide-y divide-[#E6E6E6]">
+            {rest.map(art => (
               <ArticleCard key={art.id} article={art} variant="compact" />
             ))}
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayArticles.slice(0, 3).map(art => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {categoryArticles.slice(0, 3).map(art => (
             <ArticleCard key={art.id} article={art} variant="standard" />
           ))}
         </div>

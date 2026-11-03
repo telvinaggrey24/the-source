@@ -8,7 +8,7 @@ export const SearchModal: React.FC = () => {
     setIsSearchOpen,
     articles,
     categories,
-    setView,
+    openArticle,
     language,
   } = useNews();
 
@@ -132,8 +132,8 @@ export const SearchModal: React.FC = () => {
               <div
                 key={art.id}
                 onClick={() => {
-                  setView({ type: 'article', slug: art.slug });
                   setIsSearchOpen(false);
+                  openArticle(art);
                 }}
                 className="pt-3 first:pt-0 group cursor-pointer flex items-start justify-between gap-4"
               >
