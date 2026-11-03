@@ -1,4 +1,4 @@
-import type { Article, Author, Category } from '../../src/types';
+import type { Article, Author, Category } from './types';
 
 const WIRE_AUTHOR: Author = {
   id: 'auth_wire',
