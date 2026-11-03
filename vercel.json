@@ -4,11 +4,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/news.ts": {
+    "api/news.js": {
       "maxDuration": 30,
       "memory": 1024
     },
-    "api/full-story.ts": {
+    "api/full-story.js": {
       "maxDuration": 20,
       "memory": 1024
     }

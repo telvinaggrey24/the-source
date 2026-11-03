@@ -65,6 +65,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { WorldMap } from '../common/WorldMap';
+import { isCloudinaryConfigured, uploadImageToCloudinary } from '../../lib/cloudinary';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -509,30 +510,31 @@ export const AdminDashboard: React.FC = () => {
     setActiveTab('composer');
   };
 
-  // Image File Upload with 5MB validation
-  const handleFeaturedImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image upload → Cloudinary (HTTPS URL stored on the article)
+  const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload a valid image file (JPEG, PNG, WebP, etc.).');
+    if (!isCloudinaryConfigured()) {
+      alert(
+        'Cloudinary is not configured. Add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your env.'
+      );
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds the 5MB limit. Please choose a smaller image.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setFormImage(reader.result);
-        if (!formImageAlt) setFormImageAlt(file.name.replace(/\.[^/.]+$/, ''));
-        showToast('Image uploaded successfully.');
+    try {
+      showToast('Uploading image to Cloudinary…');
+      const uploaded = await uploadImageToCloudinary(file, { tags: ['article', 'featured'] });
+      setFormImage(uploaded.url);
+      if (!formImageAlt) setFormImageAlt(file.name.replace(/\.[^/.]+$/, ''));
+      if (!formImageCredit || formImageCredit === 'The Source / Newsroom') {
+        setFormImageCredit('The Source / Cloudinary');
       }
-    };
-    reader.readAsDataURL(file);
+      showToast('Image uploaded to Cloudinary.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Cloudinary upload failed.');
+    }
   };
 
   // Save Article (Blogger-style: simple, fluid, and never blocking on rigid templates)
@@ -777,37 +779,39 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Media Library Upload
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Media Library → Cloudinary
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setMediaUploadError('Only image files are permitted (JPEG, PNG, WebP).');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setMediaUploadError('File size exceeds the 5MB limit.');
+    if (!isCloudinaryConfigured()) {
+      setMediaUploadError(
+        'Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.'
+      );
       return;
     }
 
     setMediaUploadError('');
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        const item = addMediaItem({
-          fileName: file.name,
-          url: reader.result,
-          fileType: file.type,
-          fileSize: file.size,
-          altText: file.name.replace(/\.[^/.]+$/, ''),
-          dimensions: '1200 x 800',
-        });
-        showToast(`Uploaded ${item.fileName}`);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      showToast('Uploading to Cloudinary…');
+      const uploaded = await uploadImageToCloudinary(file, { tags: ['media-library'] });
+      const dims =
+        uploaded.width && uploaded.height
+          ? `${uploaded.width} x ${uploaded.height}`
+          : 'auto';
+      const item = addMediaItem({
+        fileName: file.name,
+        url: uploaded.url,
+        fileType: uploaded.format ? `image/${uploaded.format}` : file.type,
+        fileSize: uploaded.bytes || file.size,
+        altText: file.name.replace(/\.[^/.]+$/, ''),
+        dimensions: dims,
+      });
+      showToast(`Uploaded ${item.fileName} to Cloudinary`);
+    } catch (err) {
+      setMediaUploadError(err instanceof Error ? err.message : 'Cloudinary upload failed.');
+    }
   };
 
   // User Deletion
@@ -2627,7 +2631,7 @@ export const AdminDashboard: React.FC = () => {
                     Media & Image Library
                   </h2>
                   <p className="text-xs text-stone-500">
-                    Upload images up to 5MB with alt text for high-fidelity news coverage
+                    Images upload to Cloudinary (max 5MB). Delivery URLs are stored on each media item.
                   </p>
                 </div>
 
