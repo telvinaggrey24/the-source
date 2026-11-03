@@ -4,7 +4,7 @@ import { AdBanner } from './AdBanner';
 import { Mail, Phone, MapPin, Shield, CheckCircle, Radio, Video, CloudSun, User, MessageCircle } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { categories, activeCategories, setView, language, setIsAuthModalOpen, appearanceSettings } = useNews();
+  const { activeCategories, setView, language, setIsAuthModalOpen, appearanceSettings } = useNews();
   const siteName = appearanceSettings?.siteName || 'THE SUN';
 
   return (
@@ -66,46 +66,25 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-8 border-b border-stone-800">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pb-8 border-b border-stone-800">
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Sections</h4>
             <ul className="space-y-1.5 text-stone-400">
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'politics' })} className="hover:text-white cursor-pointer">
-                  Politics
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'business' })} className="hover:text-white cursor-pointer">
-                  Business
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'international' })} className="hover:text-white cursor-pointer">
-                  World
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">More</h4>
-            <ul className="space-y-1.5 text-stone-400">
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'sports' })} className="hover:text-white cursor-pointer">
-                  Sport
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'technology' })} className="hover:text-white cursor-pointer">
-                  Tech
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'entertainment' })} className="hover:text-white cursor-pointer">
-                  Culture
-                </button>
-              </li>
+              {activeCategories.length === 0 ? (
+                <li className="text-stone-600">No public sections</li>
+              ) : (
+                activeCategories.map(cat => (
+                  <li key={cat.id}>
+                    <button
+                      type="button"
+                      onClick={() => setView({ type: 'category', categorySlug: cat.slug })}
+                      className="hover:text-white cursor-pointer"
+                    >
+                      {language === 'sw' && cat.nameSwahili ? cat.nameSwahili : cat.name}
+                    </button>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 

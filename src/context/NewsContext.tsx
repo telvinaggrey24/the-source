@@ -323,13 +323,19 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Active categories for navigation and public views
+  // Active = public nav + homepage. Toggle off in CMS to hide a desk.
   const activeCategories = useMemo(() => {
-    return categories.filter(
-      c =>
-        c.isActive !== false &&
-        PRIMARY_CATEGORY_SLUGS.includes(c.slug as (typeof PRIMARY_CATEGORY_SLUGS)[number])
-    );
+    const order = PRIMARY_CATEGORY_SLUGS as readonly string[];
+    return categories
+      .filter(c => c.isActive !== false)
+      .sort((a, b) => {
+        const ai = order.indexOf(a.slug);
+        const bi = order.indexOf(b.slug);
+        const aRank = ai === -1 ? 99 : ai;
+        const bRank = bi === -1 ? 99 : bi;
+        if (aRank !== bRank) return aRank - bRank;
+        return a.name.localeCompare(b.name);
+      });
   }, [categories]);
 
   // Media Items state

@@ -42,24 +42,17 @@ export const Header: React.FC = () => {
   const isCurrentCategory = (slug: string) =>
     view.type === 'category' && view.categorySlug === slug;
 
-  // Tight professional nav — secondary desks live under Sport / Culture
-  const MAIN_NAV_ITEMS = [
-    { label: 'Home', slug: 'home', isHome: true },
-    { label: 'Politics', slug: 'politics' },
-    { label: 'Business', slug: 'business' },
-    { label: 'World', slug: 'international' },
-    { label: 'Sport', slug: 'sports' },
-    { label: 'Tech', slug: 'technology' },
-    { label: 'Culture', slug: 'entertainment' },
+  // Nav follows CMS public ON/OFF — turned-off desks disappear here
+  const visibleNavItems = [
+    { label: 'Home', slug: 'home', isHome: true as boolean },
+    ...activeCategories.map(cat => ({
+      label: cat.name,
+      slug: cat.slug,
+      isHome: false as boolean,
+    })),
   ];
 
-  const visibleNavItems = MAIN_NAV_ITEMS.filter(item => {
-    if (item.isHome) return true;
-    const cat = activeCategories.find(c => c.slug === item.slug);
-    return cat ? cat.isActive !== false : true;
-  });
-
-  const goNav = (item: (typeof MAIN_NAV_ITEMS)[number]) => {
+  const goNav = (item: (typeof visibleNavItems)[number]) => {
     if (item.isHome) setView({ type: 'home' });
     else setView({ type: 'category', categorySlug: item.slug });
   };
