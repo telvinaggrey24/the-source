@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { fetchFullStory } from './_lib/fullStory';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -15,7 +16,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { fetchFullStory } = await import('./_lib/fullStory');
     const story = await fetchFullStory(url);
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
     return res.status(story.error && story.paragraphs.length === 0 ? 502 : 200).json(story);

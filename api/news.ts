@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { fetchGoogleNewsArticles } from './_lib/googleNews';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -9,7 +10,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { fetchGoogleNewsArticles } = await import('./_lib/googleNews');
     const articles = await fetchGoogleNewsArticles([]);
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
     return res.status(200).json({
