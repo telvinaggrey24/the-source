@@ -9,25 +9,30 @@ export interface CloudinaryUploadResult {
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-function getConfig() {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim();
-  const folder = import.meta.env.VITE_CLOUDINARY_FOLDER?.trim() || 'the-source';
-  return { cloudName, uploadPreset, folder };
+export function isCloudinaryConfigured(): boolean {
+  // Server holds the API secret; client only needs cloud name (or can always hit /api/upload).
+  return Boolean(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim()) || true;
 }
 
-export function isCloudinaryConfigured(): boolean {
-  const { cloudName, uploadPreset } = getConfig();
-  return Boolean(cloudName && uploadPreset);
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Could not read image file'));
+    };
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
- * Upload an image to Cloudinary (unsigned preset).
- * Returns a HTTPS delivery URL suitable for article/media fields.
+ * Upload an image via our signed /api/upload → Cloudinary.
+ * API secret never leaves the server.
  */
 export async function uploadImageToCloudinary(
   file: File,
-  options?: { folder?: string; tags?: string[] }
+  options?: { tags?: string[] }
 ): Promise<CloudinaryUploadResult> {
   if (!file.type.startsWith('image/')) {
     throw new Error('Only image files are allowed (JPEG, PNG, WebP, GIF).');
@@ -36,40 +41,31 @@ export async function uploadImageToCloudinary(
     throw new Error('File size exceeds the 5MB limit.');
   }
 
-  const { cloudName, uploadPreset, folder } = getConfig();
-  if (!cloudName || !uploadPreset) {
-    throw new Error(
-      'Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.'
-    );
+  const dataUrl = await fileToDataUrl(file);
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file: dataUrl,
+      tags: options?.tags || [],
+    }),
+  });
+
+  const raw = await res.text();
+  let data: CloudinaryUploadResult & { error?: string } = { url: '', publicId: '' };
+  try {
+    data = raw ? JSON.parse(raw) : data;
+  } catch {
+    throw new Error(res.ok ? 'Invalid upload response' : `Upload failed (${res.status})`);
   }
 
-  const form = new FormData();
-  form.append('file', file);
-  form.append('upload_preset', uploadPreset);
-  // Folder/tags must be allowed by the unsigned preset; folder is usually set on the preset itself.
-  const targetFolder = options?.folder || folder;
-  if (targetFolder) form.append('folder', targetFolder);
-  if (options?.tags?.length) form.append('tags', options.tags.join(','));
-
-  const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-  const res = await fetch(endpoint, { method: 'POST', body: form });
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const msg =
-      (typeof data?.error?.message === 'string' && data.error.message) ||
-      `Cloudinary upload failed (${res.status})`;
-    throw new Error(msg);
-  }
-
-  const url = data.secure_url || data.url;
-  if (!url) {
-    throw new Error('Cloudinary response missing image URL');
+  if (!res.ok || !data.url) {
+    throw new Error(data.error || `Cloudinary upload failed (${res.status})`);
   }
 
   return {
-    url,
-    publicId: data.public_id,
+    url: data.url,
+    publicId: data.publicId,
     width: data.width,
     height: data.height,
     format: data.format,

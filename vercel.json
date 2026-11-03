@@ -11,6 +11,10 @@
     "api/full-story.js": {
       "maxDuration": 20,
       "memory": 1024
+    },
+    "api/upload.js": {
+      "maxDuration": 20,
+      "memory": 1024
     }
   },
   "rewrites": [

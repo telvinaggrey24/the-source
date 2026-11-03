@@ -517,9 +517,7 @@ export const AdminDashboard: React.FC = () => {
     if (!file) return;
 
     if (!isCloudinaryConfigured()) {
-      alert(
-        'Cloudinary is not configured. Add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your env.'
-      );
+      alert('Cloudinary is not configured. Set CLOUDINARY_* secrets on the server / .env.local.');
       return;
     }
 
@@ -786,9 +784,7 @@ export const AdminDashboard: React.FC = () => {
     if (!file) return;
 
     if (!isCloudinaryConfigured()) {
-      setMediaUploadError(
-        'Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.'
-      );
+      setMediaUploadError('Cloudinary is not configured. Set CLOUDINARY_* secrets on the server / .env.local.');
       return;
     }
 
