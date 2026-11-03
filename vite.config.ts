@@ -34,15 +34,26 @@ function localApiPlugin(): Plugin {
   return {
     name: 'the-source-local-api',
     configureServer(server) {
-      server.middlewares.use('/api/news', async (_req: IncomingMessage, res: ServerResponse) => {
+      server.middlewares.use('/api/news', async (req: IncomingMessage, res: ServerResponse) => {
         try {
-          const { fetchGoogleNewsArticles } = await server.ssrLoadModule('/src/lib/googleNews.ts');
-          const articles = await fetchGoogleNewsArticles([]);
-          json(res, 200, {
-            updatedAt: new Date().toISOString(),
-            count: articles.length,
-            articles,
-          });
+          const mod = await server.ssrLoadModule('/api/news.js');
+          const fakeReq = { method: 'GET', on() {} };
+          const fakeRes = {
+            statusCode: 200,
+            headers: {} as Record<string, string>,
+            setHeader(k: string, v: string) {
+              this.headers[k] = v;
+              res.setHeader(k, v);
+            },
+            end(body?: string) {
+              res.statusCode = fakeRes.statusCode;
+              if (!res.getHeader('Content-Type')) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(body || JSON.stringify({ error: 'Empty news response', articles: [] }));
+            },
+          };
+          await mod.default(fakeReq, fakeRes);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to load news wire';
           json(res, 502, { error: message, articles: [] });
