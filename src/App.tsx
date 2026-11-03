@@ -11,8 +11,6 @@ import { BookmarksDrawer } from './components/BookmarksDrawer';
 import { NewsletterSection } from './components/NewsletterSection';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { JobAndHealthPage } from './components/JobAndHealthPage';
-import { DonateSection } from './components/donate/DonateSection';
-import { DonateModal } from './components/donate/DonateModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { AuthorProfilePage } from './components/AuthorProfilePage';
 import { AuthorsDirectoryPage } from './components/AuthorsDirectoryPage';
@@ -43,8 +41,6 @@ const AppContent: React.FC = () => {
           {view.type === 'admin' && <AdminDashboard />}
         </div>
 
-        {/* Donate Section Situated above footer */}
-        {view.type !== 'admin' && <DonateSection />}
       </div>
 
       {/* Global Overlays & Modals */}
@@ -52,7 +48,6 @@ const AppContent: React.FC = () => {
       <BookmarksDrawer />
       <NewsletterSection isModal={true} />
       <AuthModal />
-      <DonateModal />
 
       {/* Mobile Bottom Navigation Bar (Phone) */}
       <MobileBottomNav />

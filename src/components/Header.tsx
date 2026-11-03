@@ -8,7 +8,6 @@ import {
   X,
   Shield,
   User,
-  Heart,
   Phone,
   MessageCircle,
   AlertTriangle,
@@ -26,7 +25,6 @@ export const Header: React.FC = () => {
     isAdminAuthenticated,
     currentUser,
     setIsAuthModalOpen,
-    setIsDonateModalOpen,
     appearanceSettings,
     websiteSettings,
   } = useNews();
@@ -108,7 +106,7 @@ export const Header: React.FC = () => {
             </span>
           </div>
 
-          {/* Right Utility Navigation: Sign In, Donate, Saved, Search, Staff CMS */}
+          {/* Right Utility Navigation: Sign In, Saved, Search, Staff CMS */}
           <div className="flex items-center gap-3">
             {/* Newsroom Hotline Pill */}
             <a
@@ -131,16 +129,6 @@ export const Header: React.FC = () => {
                 {currentUser ? currentUser.name.split(' ')[0] : 'Sign in'}
               </span>
               {currentUser && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-            </button>
-
-            {/* Donate Trigger Button */}
-            <button
-              onClick={() => setIsDonateModalOpen(true)}
-              className="px-2.5 py-1 bg-[#BB1919] hover:bg-red-800 text-white font-bold text-xs uppercase tracking-wider rounded-2xs flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
-              title="Support Digital Daily Journalism"
-            >
-              <Heart className="w-3 h-3 fill-white" />
-              <span className="hidden sm:inline">Donate</span>
             </button>
 
             <span aria-hidden="true" className="text-stone-700 hidden sm:inline">|</span>
@@ -418,17 +406,6 @@ export const Header: React.FC = () => {
                   <span>WA: 622754599</span>
                 </a>
               </div>
-
-              <button
-                onClick={() => {
-                  setIsDonateModalOpen(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full py-2.5 bg-[#BB1919] text-white font-bold text-xs uppercase tracking-wider rounded-xs flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                <Heart className="w-4 h-4 fill-white" />
-                <span>Support The Source (Donate)</span>
-              </button>
 
               <button
                 onClick={() => {

@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNews } from '../context/NewsContext';
 import { AdBanner } from './AdBanner';
-import { Mail, Phone, MapPin, Shield, CheckCircle, Radio, Video, CloudSun, Heart, User, MessageCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Shield, CheckCircle, Radio, Video, CloudSun, User, MessageCircle } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { categories, activeCategories, setView, language, setIsDonateModalOpen, setIsAuthModalOpen, appearanceSettings } = useNews();
+  const { categories, activeCategories, setView, language, setIsAuthModalOpen, appearanceSettings } = useNews();
   const siteName = appearanceSettings?.siteName || 'THE SUN';
 
   return (
@@ -41,13 +41,6 @@ export const Footer: React.FC = () => {
             >
               <User className="w-3.5 h-3.5" />
               <span>Our Journalists</span>
-            </button>
-            <button
-              onClick={() => setIsDonateModalOpen(true)}
-              className="px-3 py-1 bg-[#BB1919] hover:bg-red-800 text-white font-bold text-xs uppercase tracking-wider rounded-2xs transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
-            >
-              <Heart className="w-3.5 h-3.5 fill-white" />
-              <span>Donate (Support Us)</span>
             </button>
             <button
               onClick={() => setIsAuthModalOpen(true)}
@@ -157,12 +150,6 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Trust & Access</h4>
             <ul className="space-y-1.5 text-stone-400">
-              <li>
-                <button onClick={() => setIsDonateModalOpen(true)} className="text-red-400 hover:text-red-300 font-bold cursor-pointer flex items-center gap-1">
-                  <Heart className="w-3 h-3 fill-current" />
-                  <span>Support The Sun</span>
-                </button>
-              </li>
               <li>
                 <button onClick={() => setView({ type: 'authors-directory' })} className="hover:text-white cursor-pointer">
                   Journalists & Editors
