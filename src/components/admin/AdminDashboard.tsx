@@ -40,7 +40,6 @@ import {
   Globe,
   Settings as SettingsIcon,
   History,
-  Lock,
   Menu,
   ChevronRight,
   AlertTriangle,
@@ -75,7 +74,7 @@ export const AdminDashboard: React.FC = () => {
     ads,
     currentUser,
     isAdminAuthenticated,
-    adminLogin,
+    adminLoginWithGoogle,
     adminLogout,
     currentAdminUser,
     addArticle,
@@ -110,9 +109,8 @@ export const AdminDashboard: React.FC = () => {
   } = useNews();
 
   // Authentication State
-  const [loginEmail, setLoginEmail] = useState('telvinaggrey24@gmail.com');
-  const [loginPassword, setLoginPassword] = useState('thesun2026');
   const [loginError, setLoginError] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
 
   // Active Navigation Tab
   type DashboardTab =
@@ -416,23 +414,17 @@ export const AdminDashboard: React.FC = () => {
     return activityLogs.filter(l => l.category === logFilterCategory);
   }, [activityLogs, logFilterCategory]);
 
-  // Login Handler
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleAdminLogin = async () => {
     setLoginError('');
-    const success = adminLogin(loginPassword, loginEmail);
-    if (!success) {
-      setLoginError('Invalid credentials. Please enter a valid administrator email and password.');
-    } else {
-      showToast('Logged in successfully as Administrator.');
+    setLoginBusy(true);
+    try {
+      const ok = await adminLoginWithGoogle();
+      if (ok) showToast('Signed in with Google as Administrator.');
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : 'Google sign-in failed.');
+    } finally {
+      setLoginBusy(false);
     }
-  };
-
-  const handleQuickLogin = (email: string) => {
-    setLoginEmail(email);
-    setLoginPassword('thesun2026');
-    adminLogin('thesun2026', email);
-    showToast(`Logged in as ${email}`);
   };
 
   // Article Form Handlers
@@ -924,83 +916,31 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
-                      Administrator Email / Contact
-                    </label>
-                    <input
-                      type="email"
-                      value={loginEmail}
-                      onChange={e => setLoginEmail(e.target.value)}
-                      required
-                      className="w-full px-3.5 py-2.5 bg-stone-900 border border-stone-700 rounded text-stone-100 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-sans"
-                      placeholder="telvinaggrey24@gmail.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={loginPassword}
-                      onChange={e => setLoginPassword(e.target.value)}
-                      required
-                      className="w-full px-3.5 py-2.5 bg-stone-900 border border-stone-700 rounded text-stone-100 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-sans"
-                      placeholder="••••••••••••"
-                    />
-                  </div>
+                <div className="space-y-4">
+                  <p className="text-sm text-stone-300">
+                    CMS access uses <strong className="text-white">Google Sign-In only</strong>. Email/password
+                    login is disabled. Your Google account must be on the admin allowlist.
+                  </p>
 
                   <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    type="button"
+                    disabled={loginBusy}
+                    onClick={() => void handleGoogleAdminLogin()}
+                    className="w-full py-3 px-4 bg-white hover:bg-stone-100 text-stone-900 font-bold text-sm rounded transition-colors shadow-md flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60"
                   >
-                    <Lock className="w-4 h-4" />
-                    <span>Sign In to Dashboard</span>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.3-1.9 3l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z" />
+                      <path fill="#34A853" d="M6.6 14.3l-.9.7-2.5 1.9C4.9 19.5 8.2 21.6 12 21.6c2.4 0 4.4-.8 5.9-2.1l-3.1-2.4c-.8.6-1.9.9-2.8.9-2.2 0-4-1.5-4.7-3.5z" />
+                      <path fill="#4A90E2" d="M3.2 7.1C2.4 8.7 2 10.3 2 12s.4 3.3 1.2 4.9l3.4-2.6C6.2 13.5 6 12.8 6 12s.2-1.5.5-2.2L3.2 7.1z" />
+                      <path fill="#FBBC05" d="M12 5.4c1.3 0 2.5.5 3.4 1.3l2.6-2.6C16.4 2.5 14.4 1.6 12 1.6 8.2 1.6 4.9 3.7 3.2 7.1l3.3 2.6C7.9 6.9 9.8 5.4 12 5.4z" />
+                    </svg>
+                    {loginBusy ? 'Signing in…' : 'Continue with Google'}
                   </button>
-                </form>
-
-                {/* Quick-Access Demo Credentials for Testing */}
-                <div className="mt-6 pt-5 border-t border-stone-800">
-                  <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">
-                    Quick Editorial Access:
-                  </p>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('telvinaggrey24@gmail.com')}
-                      className="w-full text-left p-2.5 bg-stone-900 hover:bg-stone-800 border border-stone-700 rounded text-xs text-stone-200 transition-colors flex items-center justify-between group cursor-pointer"
-                    >
-                      <div>
-                        <div className="font-bold text-white group-hover:text-red-400">
-                          telvinaggrey24@gmail.com
-                        </div>
-                        <div className="text-[10px] text-stone-400">Website Owner (Super Admin)</div>
-                      </div>
-                      <span className="text-[11px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
-                        Enter &rarr;
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('admin@thesun.co.tz')}
-                      className="w-full text-left p-2.5 bg-stone-900 hover:bg-stone-800 border border-stone-700 rounded text-xs text-stone-200 transition-colors flex items-center justify-between group cursor-pointer"
-                    >
-                      <div>
-                        <div className="font-bold text-white group-hover:text-red-400">
-                          admin@thesun.co.tz
-                        </div>
-                        <div className="text-[10px] text-stone-400">Chief Editor Account</div>
-                      </div>
-                      <span className="text-[11px] font-bold text-stone-400 bg-stone-800 px-2 py-0.5 rounded">
-                        Enter &rarr;
-                      </span>
-                    </button>
-                  </div>
                 </div>
+
+                <p className="mt-6 pt-5 border-t border-stone-800 text-[11px] text-stone-500">
+                  Allowed admin Google accounts are set in <code className="text-stone-400">VITE_ADMIN_EMAILS</code>.
+                </p>
               </div>
             </div>
           </div>
@@ -3355,7 +3295,7 @@ export const AdminDashboard: React.FC = () => {
                       type="email"
                       value={appearanceSettings?.contactEmail || ''}
                       onChange={e => updateAppearanceSettings({ contactEmail: e.target.value })}
-                      placeholder="newsroom@thesun.co.tz"
+                      placeholder="newsroom@thesource.co.tz"
                       className="w-full p-2 bg-white border border-stone-300 rounded"
                     />
                   </div>

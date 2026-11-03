@@ -19,6 +19,13 @@ import {
   ArticleStatus,
 } from '../types';
 import {
+  firebaseUserToProfile,
+  isAdminEmail,
+  signInWithGoogle,
+  signOutFirebase,
+  subscribeToAuth,
+} from '../lib/auth';
+import {
   INITIAL_CATEGORIES,
   INITIAL_SUBSCRIBERS,
   INITIAL_ADS,
@@ -76,6 +83,14 @@ interface NewsContextType {
   updateUserRole: (userId: string, newRole: UserRole) => void;
   toggleUserStatus: (userId: string) => void;
   deleteUser: (userId: string) => void;
+  createStaffUser: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: UserRole;
+    staffTitle?: string;
+    avatar?: string;
+  }) => UserProfile;
   currentAdminUser: UserProfile | null;
 
   // Appearance & Website Settings
@@ -117,9 +132,8 @@ interface NewsContextType {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   currentUser: UserProfile | null;
-  loginWithPhone: (phone: string, name?: string) => UserProfile;
-  loginWithEmail: (email: string, name?: string) => UserProfile;
-  logoutUser: () => void;
+  loginWithGoogle: () => Promise<UserProfile>;
+  logoutUser: () => Promise<void>;
 
   // Donations
   isDonateModalOpen: boolean;
@@ -131,8 +145,8 @@ interface NewsContextType {
 
   // Admin Auth
   isAdminAuthenticated: boolean;
-  adminLogin: (password: string, email?: string) => boolean;
-  adminLogout: () => void;
+  adminLoginWithGoogle: () => Promise<boolean>;
+  adminLogout: () => Promise<void>;
 
   // General System
   language: 'en' | 'sw';
@@ -572,47 +586,50 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivityLogs([]);
   };
 
-  // Admin Authentication
-  const adminLogin = (password: string, email?: string): boolean => {
-    const validEmails = ['telvinaggrey24@gmail.com', 'admin@thesun.co.tz', 'admin@thesource.co.tz'];
-    const cleanEmail = email?.trim().toLowerCase() || 'telvinaggrey24@gmail.com';
-
-    // Accept valid demo keys or instant access
-    const isValidPass =
-      password === 'thesun2026' ||
-      password === 'thesource2026' ||
-      password === 'admin123' ||
-      password === 'thesun' ||
-      password === 'habari2026';
-
-    if (isValidPass || validEmails.includes(cleanEmail)) {
-      const user = registeredUsers.find(u => u.email?.toLowerCase() === cleanEmail) || {
-        id: `usr_${Date.now()}`,
-        name: cleanEmail.includes('telvin') ? 'Website Owner & Admin' : 'Chief Editor',
-        email: cleanEmail,
-        role: 'admin' as UserRole,
-        status: 'active' as const,
-        isSubscriber: true,
-        isDonor: true,
-        registeredAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      };
-
+  const applyFirebaseUser = (profile: UserProfile, asAdmin: boolean) => {
+    if (asAdmin) {
       setIsAdminAuthenticated(true);
-      setCurrentAdminUser(user);
-
+      setCurrentAdminUser(profile);
       try {
         localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
-        localStorage.setItem(STORAGE_KEYS.ADMIN_USER, JSON.stringify(user));
+        localStorage.setItem(STORAGE_KEYS.ADMIN_USER, JSON.stringify(profile));
       } catch {}
-
-      logAdminActivity('Administrator Login', 'Admin Dashboard', 'security', `Session initiated for ${cleanEmail}`);
-      return true;
+    } else {
+      setIsAdminAuthenticated(false);
+      setCurrentAdminUser(null);
+      try {
+        localStorage.removeItem(STORAGE_KEYS.AUTH);
+        localStorage.removeItem(STORAGE_KEYS.ADMIN_USER);
+      } catch {}
     }
-    return false;
+    setCurrentUser(profile);
+    setRegisteredUsers(prev => [profile, ...prev.filter(u => u.id !== profile.id && u.email !== profile.email)]);
   };
 
-  const adminLogout = () => {
+  // Admin = Google Sign-In + allowlisted email only
+  const adminLoginWithGoogle = async (): Promise<boolean> => {
+    try {
+      const fbUser = await signInWithGoogle();
+      if (!isAdminEmail(fbUser.email)) {
+        await signOutFirebase();
+        throw new Error('This Google account is not authorized for CMS admin access.');
+      }
+      const profile = firebaseUserToProfile(fbUser, 'admin');
+      applyFirebaseUser(profile, true);
+      logAdminActivity(
+        'Administrator Login',
+        'Admin Dashboard',
+        'security',
+        `Google sign-in for ${fbUser.email}`
+      );
+      return true;
+    } catch (error) {
+      console.error('[adminLoginWithGoogle]', error);
+      throw error;
+    }
+  };
+
+  const adminLogout = async () => {
     logAdminActivity('Administrator Logout', 'Admin Dashboard', 'security', 'Session ended');
     setIsAdminAuthenticated(false);
     setCurrentAdminUser(null);
@@ -620,6 +637,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(STORAGE_KEYS.AUTH);
       localStorage.removeItem(STORAGE_KEYS.ADMIN_USER);
     } catch {}
+    await signOutFirebase();
     if (view.type === 'admin') {
       setView({ type: 'home' });
     }
@@ -851,6 +869,50 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const createStaffUser = (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: UserRole;
+    staffTitle?: string;
+    avatar?: string;
+  }): UserProfile => {
+    const email = data.email.trim().toLowerCase();
+    const existing = registeredUsers.find(u => u.email?.toLowerCase() === email);
+    if (existing) {
+      const updated: UserProfile = {
+        ...existing,
+        name: data.name.trim(),
+        phone: data.phone || existing.phone,
+        role: data.role,
+        staffTitle: data.staffTitle || existing.staffTitle,
+        avatar: data.avatar || existing.avatar,
+        status: 'active',
+        lastLogin: existing.lastLogin,
+      };
+      setRegisteredUsers(prev => prev.map(u => (u.id === existing.id ? updated : u)));
+      logAdminActivity('Updated Staff Member', data.name, 'user', `Role: ${data.role}`);
+      return updated;
+    }
+
+    const user: UserProfile = {
+      id: `usr_${Date.now()}`,
+      name: data.name.trim(),
+      email,
+      phone: data.phone,
+      role: data.role,
+      staffTitle: data.staffTitle,
+      avatar: data.avatar,
+      status: 'active',
+      isSubscriber: false,
+      isDonor: false,
+      registeredAt: new Date().toISOString(),
+    };
+    setRegisteredUsers(prev => [user, ...prev]);
+    logAdminActivity('Created Staff Member', data.name, 'user', `Role: ${data.role}, Email: ${email}`);
+    return user;
+  };
+
   const deleteUser = (userId: string) => {
     const user = registeredUsers.find(u => u.id === userId);
     setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
@@ -1040,46 +1102,47 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Reader Phone / Email Login
-  const loginWithPhone = (phone: string, name?: string): UserProfile => {
-    const profile: UserProfile = {
-      id: `usr_${Date.now()}`,
-      name: name?.trim() || `Reader (${phone.replace(/\s+/g, '').slice(-4)})`,
-      phone: phone.trim(),
-      role: 'reader',
-      status: 'active',
-      isSubscriber: true,
-      isDonor: false,
-      registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-    };
-    setCurrentUser(profile);
-    setRegisteredUsers(prev => [profile, ...prev.filter(u => u.phone !== phone.trim())]);
+  const loginWithGoogle = async (): Promise<UserProfile> => {
+    const fbUser = await signInWithGoogle();
+    const asAdmin = isAdminEmail(fbUser.email);
+    const profile = firebaseUserToProfile(fbUser, asAdmin ? 'admin' : 'reader');
+    applyFirebaseUser(profile, asAdmin);
     setIsAuthModalOpen(false);
     return profile;
   };
 
-  const loginWithEmail = (email: string, name?: string): UserProfile => {
-    const profile: UserProfile = {
-      id: `usr_${Date.now()}`,
-      name: name?.trim() || email.split('@')[0],
-      email: email.trim().toLowerCase(),
-      role: 'reader',
-      status: 'active',
-      isSubscriber: true,
-      isDonor: false,
-      registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-    };
-    setCurrentUser(profile);
-    setRegisteredUsers(prev => [profile, ...prev.filter(u => u.email !== email.trim().toLowerCase())]);
-    setIsAuthModalOpen(false);
-    return profile;
-  };
-
-  const logoutUser = () => {
+  const logoutUser = async () => {
     setCurrentUser(null);
+    setIsAdminAuthenticated(false);
+    setCurrentAdminUser(null);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.AUTH);
+      localStorage.removeItem(STORAGE_KEYS.ADMIN_USER);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    } catch {}
+    await signOutFirebase();
   };
+
+  // Keep React state in sync with Firebase Auth (Google only)
+  useEffect(() => {
+    return subscribeToAuth(user => {
+      if (!user) {
+        setCurrentUser(null);
+        setIsAdminAuthenticated(false);
+        setCurrentAdminUser(null);
+        try {
+          localStorage.removeItem(STORAGE_KEYS.AUTH);
+          localStorage.removeItem(STORAGE_KEYS.ADMIN_USER);
+          localStorage.removeItem(STORAGE_KEYS.USER);
+        } catch {}
+        return;
+      }
+      const asAdmin = isAdminEmail(user.email);
+      const profile = firebaseUserToProfile(user, asAdmin ? 'admin' : 'reader');
+      applyFirebaseUser(profile, asAdmin);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Donations Ledger
   const recordDonation = (data: Omit<DonationRecord, 'id' | 'timestamp' | 'status'>): DonationRecord => {
@@ -1282,6 +1345,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserRole,
         toggleUserStatus,
         deleteUser,
+        createStaffUser,
         currentAdminUser,
         appearanceSettings,
         updateAppearanceSettings,
@@ -1310,8 +1374,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthModalOpen,
         setIsAuthModalOpen,
         currentUser,
-        loginWithPhone,
-        loginWithEmail,
+        loginWithGoogle,
         logoutUser,
         isDonateModalOpen,
         setIsDonateModalOpen,
@@ -1320,7 +1383,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteDonation,
         exportDonationsCSV,
         isAdminAuthenticated,
-        adminLogin,
+        adminLoginWithGoogle,
         adminLogout,
         language,
         setLanguage,
