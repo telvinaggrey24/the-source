@@ -107,7 +107,19 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
     fetch(`/api/full-story?url=${encodeURIComponent(article.sourceUrl)}`)
       .then(async res => {
-        const data = await res.json();
+        const raw = await res.text();
+        let data: { error?: string; paragraphs?: string[]; finalUrl?: string } = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch {
+          if (cancelled) return;
+          setWireError(
+            `Full-story API failed (${res.status}). ${raw.slice(0, 120).trim() || 'Server error'}`
+          );
+          setWireBody(null);
+          setWireFinalUrl(article.sourceUrl);
+          return;
+        }
         if (cancelled) return;
         if (!res.ok || !Array.isArray(data.paragraphs) || data.paragraphs.length === 0) {
           setWireError(data.error || 'Could not load the full article text.');

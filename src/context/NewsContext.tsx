@@ -419,7 +419,17 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
 
       const res = await fetch('/api/news');
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; articles?: Article[] } = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'News API returned an invalid response'
+            : `News API failed (${res.status}). ${raw.slice(0, 120).trim() || 'Server error'}`
+        );
+      }
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to load live news wire');
       }

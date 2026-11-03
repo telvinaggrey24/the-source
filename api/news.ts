@@ -1,20 +1,16 @@
-import { fetchGoogleNewsArticles } from '../src/lib/googleNews';
-import { INITIAL_CATEGORIES } from '../src/data/initialData';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(
-  req: { method?: string },
-  res: {
-    setHeader: (k: string, v: string) => void;
-    status: (n: number) => { json: (b: unknown) => void };
-  }
-) {
-  if (req.method !== 'GET') {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+  if (req.method && req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed', articles: [] });
   }
 
   try {
-    const articles = await fetchGoogleNewsArticles(INITIAL_CATEGORIES);
+    const { fetchGoogleNewsArticles } = await import('./_lib/googleNews');
+    const articles = await fetchGoogleNewsArticles([]);
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
     return res.status(200).json({
       updatedAt: new Date().toISOString(),
@@ -23,7 +19,7 @@ export default async function handler(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load news wire';
-    console.error('[api/news]', message);
+    console.error('[api/news]', message, error);
     return res.status(502).json({ error: message, articles: [] });
   }
 }
