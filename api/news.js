@@ -80,10 +80,24 @@ function pickCategory(title, source, apiCategory) {
   return { id: 'cat_international', name: 'International' };
 }
 
+function isGoogleNewsItem(item) {
+  const link = String(item.link || item.url || '').toLowerCase();
+  const source = String(
+    item.source_name || item.source_id || item.source?.name || ''
+  ).toLowerCase();
+  return (
+    link.includes('news.google.') ||
+    link.includes('google.com/news') ||
+    source === 'google news' ||
+    source.includes('google news')
+  );
+}
+
 function mapWireItem(item, index, providerTag) {
   const title = String(item.title || '').trim();
   const link = String(item.link || item.url || '').trim();
   if (!title || !link || title === '[Removed]') return null;
+  if (isGoogleNewsItem(item)) return null;
 
   const source =
     item.source_name ||
@@ -329,7 +343,7 @@ export default async function handler(req, res) {
 
   try {
     const { articles, providers } = await buildArticles();
-    res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return sendJson(res, 200, {
       updatedAt: new Date().toISOString(),
       count: articles.length,

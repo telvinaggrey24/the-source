@@ -180,19 +180,48 @@ const STORAGE_KEYS = {
   DONATIONS: 'the_source_donations_v2',
   MEDIA: 'the_source_media_v3',
   USERS: 'the_source_users_v3',
-  APPEARANCE: 'the_source_appearance_v3',
-  SETTINGS: 'the_source_settings_v3',
+  APPEARANCE: 'the_source_appearance_v4',
+  SETTINGS: 'the_source_settings_v4',
   LOGS: 'the_source_logs_v3',
 };
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
 
+/** Drop legacy Google News wire items still stuck in browser storage */
+function isGoogleNewsArtifact(article: Article): boolean {
+  const blob = [
+    article.author?.name,
+    article.subtitle,
+    article.summary,
+    article.sourceUrl,
+    ...(article.tags || []),
+    ...(article.content || []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return (
+    blob.includes('news.google.com') ||
+    blob.includes('google news') ||
+    (article.tags || []).includes('google-news') ||
+    /^google news$/i.test(article.author?.name || '')
+  );
+}
+
 function loadCmsArticles(): Article[] {
   try {
+    // Drop very old google-wire caches
+    localStorage.removeItem('the_source_articles_v4_bilingual');
+    localStorage.removeItem(STORAGE_KEYS.ARTICLES);
+    localStorage.removeItem('the_source_appearance_v3');
+    localStorage.removeItem('the_source_settings_v3');
+
     const stored = localStorage.getItem(STORAGE_KEYS.CMS_ARTICLES);
     if (!stored) return [];
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.filter((a: Article) => a && !a.isWireStory) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((a: Article) => a && !a.isWireStory && !isGoogleNewsArtifact(a))
+      : [];
   } catch {
     return [];
   }
@@ -200,7 +229,7 @@ function loadCmsArticles(): Article[] {
 
 function persistCmsArticles(all: Article[]) {
   try {
-    const cmsOnly = all.filter(a => !a.isWireStory);
+    const cmsOnly = all.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
     localStorage.setItem(STORAGE_KEYS.CMS_ARTICLES, JSON.stringify(cmsOnly));
   } catch {}
 }
@@ -476,10 +505,12 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to load live news wire');
       }
-      const wireArticles: Article[] = Array.isArray(data.articles) ? data.articles : [];
-      // Keep CMS posts; only replace wire stories
+      const wireArticles: Article[] = (Array.isArray(data.articles) ? data.articles : []).filter(
+        a => !isGoogleNewsArtifact(a)
+      );
+      // Keep CMS posts; only replace wire stories (never keep Google News leftovers)
       setArticles(prev => {
-        const cms = prev.filter(a => !a.isWireStory);
+        const cms = prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
         const merged = [...cms, ...wireArticles];
         persistCmsArticles(merged);
         return merged;
@@ -1333,10 +1364,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? articles.find(a => a.slug === articleOrSlug || a.id === articleOrSlug)
         : articleOrSlug;
     if (!art) return;
-    if (art.isWireStory && art.sourceUrl) {
-      window.location.assign(art.sourceUrl);
-      return;
-    }
+    // Always open in-app (wire stories use ArticleDetail + optional publisher link)
     setView({ type: 'article', slug: art.slug });
   };
 

@@ -144,16 +144,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
     };
   }, [article?.id, article?.isWireStory, article?.sourceUrl]);
 
-  // If full text cannot be extracted, send the reader to the publisher page
-  useEffect(() => {
-    if (!article?.isWireStory || !article.sourceUrl) return;
-    if (wireLoading || wireBody) return;
-    if (!wireError) return;
-    const timer = window.setTimeout(() => {
-      window.location.assign(wireFinalUrl || article.sourceUrl!);
-    }, 1600);
-    return () => window.clearTimeout(timer);
-  }, [article?.isWireStory, article?.sourceUrl, wireLoading, wireBody, wireError, wireFinalUrl]);
+  // Wire extract failures stay in-app — reader can open the publisher via the CTA below.
 
   // Audio playback timer simulation
   useEffect(() => {
