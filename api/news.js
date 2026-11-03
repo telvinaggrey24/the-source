@@ -1,5 +1,5 @@
 /**
- * News wire: NewsData.io + NewsAPI.org, with Google News RSS fallback.
+ * News wire: NewsData.io + NewsAPI.org only.
  * Keys: NEWSDATA_API_KEY, NEWSAPI_API_KEY (server-only, never VITE_).
  */
 
@@ -245,66 +245,13 @@ async function fetchNewsApiOrg(apiKey) {
   }));
 }
 
-async function fetchGoogleFallback() {
-  const feeds = [
-    'https://news.google.com/rss?hl=en-TZ&gl=TZ&ceid=TZ:en',
-    'https://news.google.com/rss/search?q=Tanzania&hl=en-TZ&gl=TZ&ceid=TZ:en',
-  ];
-  const xmlChunks = [];
-  for (const feed of feeds) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7000);
-      try {
-        const res = await fetch(feed, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; TheSourceBot/1.0; +https://thesource.co.tz)',
-            Accept: 'application/rss+xml, application/xml, text/xml, */*',
-          },
-          signal: controller.signal,
-        });
-        if (res.ok) xmlChunks.push(await res.text());
-      } finally {
-        clearTimeout(timer);
-      }
-    } catch {
-      // skip
-    }
-  }
-
-  const items = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-  for (const xml of xmlChunks) {
-    let match;
-    while ((match = itemRegex.exec(xml)) !== null) {
-      const block = match[1];
-      const grab = (tag) => {
-        const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
-        return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
-      };
-      const titleRaw = grab('title');
-      const parts = titleRaw.split(/\s+-\s+/);
-      const source = parts.length >= 2 ? parts.pop().trim() : 'Google News';
-      const title = parts.join(' - ').trim() || titleRaw;
-      items.push({
-        title,
-        link: grab('link'),
-        description: grab('description').replace(/<[^>]+>/g, ' ').trim(),
-        source_name: source,
-        pubDate: grab('pubDate'),
-        article_id: undefined,
-        image_url: null,
-        category: [],
-        _provider: 'google',
-      });
-    }
-  }
-  return items;
-}
-
 async function buildArticles() {
   const newsdataKey = (process.env.NEWSDATA_API_KEY || '').trim();
   const newsapiKey = (process.env.NEWSAPI_API_KEY || process.env.NEWS_API_KEY || '').trim();
+
+  if (!newsdataKey && !newsapiKey) {
+    throw new Error('Set NEWSDATA_API_KEY and/or NEWSAPI_API_KEY on the server.');
+  }
 
   const providers = [];
   const batches = [];
@@ -338,16 +285,11 @@ async function buildArticles() {
   }
 
   const settled = await Promise.all(batches);
-  let rawItems = settled.flat();
-
-  if (rawItems.length === 0) {
-    rawItems = await fetchGoogleFallback();
-    if (rawItems.length) providers.push('google-news-fallback');
-  }
+  const rawItems = settled.flat();
 
   if (rawItems.length === 0) {
     throw new Error(
-      'News wire returned no articles. Set NEWSDATA_API_KEY and/or NEWSAPI_API_KEY, then retry.'
+      'News wire returned no articles. Check NEWSDATA_API_KEY / NEWSAPI_API_KEY and try again.'
     );
   }
 

@@ -62,7 +62,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
   // Dual-language viewing mode (default: both Swahili on top & English down below)
   const [bilingualMode, setBilingualMode] = useState<'both' | 'swahili' | 'english'>('both');
 
-  // Full body for Google News wire items (fetched on open)
+  // Full body for syndicated wire items (fetched on open)
   const [wireBody, setWireBody] = useState<string[] | null>(null);
   const [wireLoading, setWireLoading] = useState(false);
   const [wireError, setWireError] = useState<string | null>(null);

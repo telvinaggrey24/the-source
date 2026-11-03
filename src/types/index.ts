@@ -81,7 +81,7 @@ export interface Article {
   seoMetaDescription?: string;
   seoCanonicalUrl?: string;
   seoSocialImage?: string;
-  /** External full-story URL for Google News / wire items */
+  /** External full-story URL for syndicated wire items */
   sourceUrl?: string;
   isWireStory?: boolean;
 }

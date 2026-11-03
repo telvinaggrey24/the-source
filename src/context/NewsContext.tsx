@@ -157,7 +157,7 @@ interface NewsContextType {
   exportSubscribersCSV: () => void;
   exportArticlesJson: () => void;
 
-  // Live Google News wire
+  // Live news wire (NewsData.io + NewsAPI.org)
   newsLoading: boolean;
   newsError: string | null;
   refreshNewsWire: () => Promise<void>;
@@ -165,7 +165,7 @@ interface NewsContextType {
 
 const STORAGE_KEYS = {
   ARTICLES: 'the_source_articles_v5_wire',
-  /** Editorial CMS posts only (never wiped by Google News refresh) */
+  /** Editorial CMS posts only (never wiped by wire refresh) */
   CMS_ARTICLES: 'the_source_cms_articles_v1',
   AUTHORS: 'the_source_authors_v1',
   CATEGORIES: 'the_source_categories_v3',
@@ -206,7 +206,7 @@ function persistCmsArticles(all: Article[]) {
 }
 
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Merged list: CMS editorial posts + live Google News wire
+  // Merged list: CMS editorial posts + live wire (NewsData / NewsAPI)
   const [articles, setArticles] = useState<Article[]>(() => loadCmsArticles());
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);

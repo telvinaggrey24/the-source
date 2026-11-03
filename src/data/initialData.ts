@@ -18,7 +18,7 @@ export const INITIAL_AUTHORS: Author[] = [
     title: 'News Wire',
     avatar:
       'https://images.unsplash.com/photo-1504711435509-084227bb48b6?auto=format&fit=crop&w=400&h=400&q=80',
-    bio: 'Live headlines syndicated from Google News for Tanzania and East Africa.',
+    bio: 'Live headlines for Tanzania and East Africa from the news wire.',
     location: 'Dar es Salaam',
     joinedYear: '2026',
   },
@@ -99,7 +99,7 @@ export const INITIAL_CATEGORIES: Category[] = [
   },
 ];
 
-/** Demo articles removed — live Google News wire fills the site. */
+/** Demo articles removed — live NewsData/NewsAPI wire fills the site. */
 export const INITIAL_ARTICLES: Article[] = [];
 
 export const INITIAL_SUBSCRIBERS: Subscriber[] = [];
@@ -168,7 +168,7 @@ export const INITIAL_APPEARANCE_SETTINGS: WebsiteAppearanceSettings = {
   breakingNewsTicker: 'LIVE WIRE: Loading latest headlines from Tanzania and East Africa…',
   featuredStoryId: '',
   footerBio:
-    'THE SOURCE delivers live East African headlines via Google News wire, with links to original publishers for full reports.',
+    'THE SOURCE delivers live East African headlines via the news wire, with links to original publishers for full reports.',
   socialLinks: {
     twitter: 'https://twitter.com',
     facebook: 'https://facebook.com',
@@ -185,7 +185,7 @@ export const INITIAL_APPEARANCE_SETTINGS: WebsiteAppearanceSettings = {
 export const INITIAL_WEBSITE_SETTINGS: WebsiteSettings = {
   maintenanceMode: false,
   editorialPolicy:
-    'Wire headlines are syndicated from Google News. Full articles remain on the original publisher’s site. THE SOURCE links out for complete reporting.',
+    'Wire headlines are syndicated from NewsData.io and NewsAPI.org. Full articles remain on the original publisher’s site. THE SOURCE links out for complete reporting.',
   privacyPolicy:
     'We respect reader privacy. We do not sell personal data to third parties.',
   termsConditions:
@@ -194,6 +194,6 @@ export const INITIAL_WEBSITE_SETTINGS: WebsiteSettings = {
   googleAdSenseSlot: '',
   defaultMetaTitle: 'THE SOURCE — Live Tanzania & East Africa News',
   defaultMetaDescription:
-    'Live headlines from Tanzania and East Africa via Google News, with links to original publishers.',
+    'Live headlines from Tanzania and East Africa via the news wire, with links to original publishers.',
   canonicalBaseUrl: 'https://thesource.co.tz',
 };
