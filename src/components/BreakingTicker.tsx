@@ -3,20 +3,21 @@ import { useNews } from '../context/NewsContext';
 import { Pause, Play } from 'lucide-react';
 
 export const BreakingTicker: React.FC = () => {
-  const { articles, openArticle, language, appearanceSettings } = useNews();
+  const { publicArticles, openArticle, language, appearanceSettings } = useNews();
 
   if (appearanceSettings?.breakingNewsEnabled === false) return null;
 
-  const breakingArticles = articles.filter(a => a.isBreaking && a.status === 'published');
+  const breakingArticles = publicArticles.filter(a => a.isBreaking);
   const [isPaused, setIsPaused] = useState(false);
 
   // If custom ticker text is set in admin appearance settings, prioritize it
   const customTickerText = appearanceSettings?.breakingNewsTicker?.trim();
 
   // If fewer than 2 breaking articles, grab other urgent/trending ones to give a rich ticker experience
-  const baseItems = breakingArticles.length >= 2 
-    ? breakingArticles 
-    : [...breakingArticles, ...articles.filter(a => a.isTrending && a.status === 'published').slice(0, 4)];
+  const baseItems =
+    breakingArticles.length >= 2
+      ? breakingArticles
+      : [...breakingArticles, ...publicArticles.filter(a => a.isTrending).slice(0, 4)];
 
   if (baseItems.length === 0 && !customTickerText) return null;
 

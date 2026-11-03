@@ -7,8 +7,8 @@ import { ArticleCard } from './ArticleCard';
  * large lead + two media promos underneath + most-read rail.
  */
 export const HeroGrid: React.FC = () => {
-  const { articles, language, appearanceSettings } = useNews();
-  const published = articles.filter(a => a.status === 'published');
+  const { publicArticles, language, appearanceSettings } = useNews();
+  const published = publicArticles;
 
   if (published.length === 0) return null;
 

@@ -45,10 +45,16 @@ import {
   INITIAL_WEBSITE_SETTINGS,
 } from '../data/initialData';
 import type { SiteLanguage } from '../utils/locale';
+import { fetchHiddenArticleIds, saveHiddenArticleIds } from '../lib/moderation';
 
 interface NewsContextType {
   // Articles
   articles: Article[];
+  /** Published stories visible to the public (excludes admin-hidden). */
+  publicArticles: Article[];
+  hiddenArticleIds: string[];
+  isArticleHidden: (id: string) => boolean;
+  toggleArticleVisibility: (id: string) => void;
   addArticle: (article: Omit<Article, 'id' | 'viewsCount' | 'reactions' | 'comments'>) => Article;
   updateArticle: (id: string, updates: Partial<Article>) => void;
   deleteArticle: (id: string) => void;
@@ -195,6 +201,7 @@ const STORAGE_KEYS = {
   APPEARANCE: 'the_source_appearance_v4',
   SETTINGS: 'the_source_settings_v4',
   LOGS: 'the_source_logs_v3',
+  HIDDEN_ARTICLES: 'the_source_hidden_articles_v1',
 };
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
@@ -268,10 +275,30 @@ function syncCmsToCloud(article: Article | undefined): Promise<void> {
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Merged list: CMS editorial posts + live wire (NewsData / NewsAPI)
   const [articles, setArticles] = useState<Article[]>(() => loadCmsArticles());
+  const [hiddenArticleIds, setHiddenArticleIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.HIDDEN_ARTICLES);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.filter((id: unknown) => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
   const articlesRef = useRef(articles);
   articlesRef.current = articles;
+
+  const publicArticles = useMemo(
+    () =>
+      articles.filter(
+        a => a.status === 'published' && !hiddenArticleIds.includes(a.id) && !isGoogleNewsArtifact(a)
+      ),
+    [articles, hiddenArticleIds]
+  );
+
+  const isArticleHidden = (id: string) => hiddenArticleIds.includes(id);
 
   // Authors state (editable from staff CMS)
   const [authors, setAuthors] = useState<Author[]>(() => {
@@ -575,12 +602,24 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Load shared CMS posts from Firestore, then refresh the live wire
+  // Load shared CMS posts + hidden list from Firestore, then refresh the live wire
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const remoteCms = await fetchCmsArticles();
+      const [remoteCms, remoteHidden] = await Promise.all([
+        fetchCmsArticles(),
+        fetchHiddenArticleIds(),
+      ]);
       if (cancelled) return;
+      if (remoteHidden.length > 0) {
+        setHiddenArticleIds(prev => {
+          const merged = Array.from(new Set([...prev, ...remoteHidden]));
+          try {
+            localStorage.setItem(STORAGE_KEYS.HIDDEN_ARTICLES, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
       if (remoteCms.length > 0) {
         setArticles(prev => {
           const localCms = prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
@@ -722,6 +761,34 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearActivityLogs = () => {
     setActivityLogs([]);
+  };
+
+  const toggleArticleVisibility = (id: string) => {
+    setHiddenArticleIds(prev => {
+      const wasHidden = prev.includes(id);
+      const next = wasHidden ? prev.filter(x => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem(STORAGE_KEYS.HIDDEN_ARTICLES, JSON.stringify(next));
+      } catch {}
+      void saveHiddenArticleIds(next).catch(err => {
+        console.warn('[moderation] Cloud sync failed', err);
+        if (typeof window !== 'undefined') {
+          window.alert(
+            err instanceof Error
+              ? err.message
+              : 'Could not sync visibility to the cloud. Change is only on this browser for now.'
+          );
+        }
+      });
+      const art = articlesRef.current.find(a => a.id === id);
+      logAdminActivity(
+        wasHidden ? 'Showed Article on Site' : 'Hid Article from Site',
+        art?.title || id,
+        'article',
+        wasHidden ? 'Visible to readers again' : 'Hidden from public homepage and sections'
+      );
+      return next;
+    });
   };
 
   const applyFirebaseUser = (profile: UserProfile, asAdmin: boolean) => {
@@ -1556,6 +1623,10 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <NewsContext.Provider
       value={{
         articles,
+        publicArticles,
+        hiddenArticleIds,
+        isArticleHidden,
+        toggleArticleVisibility,
         addArticle,
         updateArticle,
         deleteArticle,

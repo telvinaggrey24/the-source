@@ -63,6 +63,8 @@ import {
   LayoutTemplate,
   CheckSquare,
   MessageCircle,
+  EyeOff,
+  RefreshCw,
 } from 'lucide-react';
 import { WorldMap } from '../common/WorldMap';
 import { isCloudinaryConfigured, uploadImageToCloudinary } from '../../lib/cloudinary';
@@ -85,6 +87,10 @@ export const AdminDashboard: React.FC = () => {
     setFeaturedHero,
     toggleArticleStatus,
     toggleCommentsEnabled,
+    isArticleHidden,
+    toggleArticleVisibility,
+    refreshNewsWire,
+    newsLoading,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -136,7 +142,10 @@ export const AdminDashboard: React.FC = () => {
   const [articleSearch, setArticleSearch] = useState('');
   const [articleCategoryFilter, setArticleCategoryFilter] = useState('all');
   const [articleStatusFilter, setArticleStatusFilter] = useState<'all' | ArticleStatus>('all');
-  const [articleSourceFilter, setArticleSourceFilter] = useState<'cms' | 'wire' | 'all'>('cms');
+  const [articleSourceFilter, setArticleSourceFilter] = useState<'cms' | 'wire' | 'all'>('all');
+  const [articleVisibilityFilter, setArticleVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>(
+    'all'
+  );
 
   // Confirmation Modals
   const [deleteArticleModal, setDeleteArticleModal] = useState<{ isOpen: boolean; article: Article | null }>({
@@ -339,7 +348,7 @@ export const AdminDashboard: React.FC = () => {
 
   const maxCategoryCount = Math.max(...categoryChartData.map(c => c.count), 1);
 
-  // Filtered Articles — default to CMS editorial posts (wire is read-only syndication)
+  // Same feed readers see (CMS + wire), so admin can show/hide any story
   const filteredArticles = useMemo(() => {
     return articles
       .filter(a => {
@@ -356,15 +365,27 @@ export const AdminDashboard: React.FC = () => {
           articleSourceFilter === 'all' ||
           (articleSourceFilter === 'cms' && !a.isWireStory) ||
           (articleSourceFilter === 'wire' && !!a.isWireStory);
+        const hidden = isArticleHidden(a.id);
+        const matchesVisibility =
+          articleVisibilityFilter === 'all' ||
+          (articleVisibilityFilter === 'hidden' && hidden) ||
+          (articleVisibilityFilter === 'visible' && !hidden);
 
-        return matchesSearch && matchesCat && matchesStatus && matchesSource;
+        return matchesSearch && matchesCat && matchesStatus && matchesSource && matchesVisibility;
       })
       .sort((a, b) => {
-        // CMS first, then newest
         if (!!a.isWireStory !== !!b.isWireStory) return a.isWireStory ? 1 : -1;
         return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
       });
-  }, [articles, articleSearch, articleCategoryFilter, articleStatusFilter, articleSourceFilter]);
+  }, [
+    articles,
+    articleSearch,
+    articleCategoryFilter,
+    articleStatusFilter,
+    articleSourceFilter,
+    articleVisibilityFilter,
+    isArticleHidden,
+  ]);
 
   // Flattened Comments list with parent article context
   const flattenedComments = useMemo(() => {
@@ -1475,10 +1496,33 @@ export const AdminDashboard: React.FC = () => {
                     onChange={e => setArticleSourceFilter(e.target.value as 'cms' | 'wire' | 'all')}
                     className="px-3 py-2 bg-stone-50 border border-stone-300 rounded text-xs text-stone-800 font-medium focus:outline-none focus:border-red-500"
                   >
+                    <option value="all">Site feed (CMS + Wire)</option>
                     <option value="cms">Our posts (CMS)</option>
                     <option value="wire">Wire only</option>
-                    <option value="all">CMS + Wire</option>
                   </select>
+
+                  <select
+                    value={articleVisibilityFilter}
+                    onChange={e =>
+                      setArticleVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')
+                    }
+                    className="px-3 py-2 bg-stone-50 border border-stone-300 rounded text-xs text-stone-800 font-medium focus:outline-none focus:border-red-500"
+                  >
+                    <option value="all">All visibility</option>
+                    <option value="visible">Showing on site</option>
+                    <option value="hidden">Hidden from site</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => void refreshNewsWire()}
+                    disabled={newsLoading}
+                    className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 rounded text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+                    title="Refresh the same live wire readers see"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh feed</span>
+                  </button>
 
                   <button
                     onClick={handleOpenNewArticle}
@@ -1490,6 +1534,11 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
+              <p className="text-[11px] text-stone-500">
+                This list is the same news readers see. Use <strong>Show / Hide</strong> to turn a
+                story off the public site without deleting it.
+              </p>
+
               {/* Table of Articles */}
               <div className="overflow-x-auto border border-stone-200 rounded-lg">
                 <table className="w-full text-left text-xs divide-y divide-stone-200">
@@ -1500,6 +1549,7 @@ export const AdminDashboard: React.FC = () => {
                       <th className="py-3 px-3">Author</th>
                       <th className="py-3 px-3">Admin &amp; Audit</th>
                       <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">On site</th>
                       <th className="py-3 px-3">Flags</th>
                       <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
@@ -1507,15 +1557,19 @@ export const AdminDashboard: React.FC = () => {
                   <tbody className="divide-y divide-stone-100 bg-white">
                     {filteredArticles.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-stone-400">
+                        <td colSpan={8} className="py-8 text-center text-stone-400">
                           No articles match your search or filter criteria.
                         </td>
                       </tr>
                     ) : (
                       filteredArticles.map(art => {
                         const authorName = typeof art.author === 'string' ? art.author : art.author?.name || 'Editorial Team';
+                        const hidden = isArticleHidden(art.id);
                         return (
-                          <tr key={art.id} className="hover:bg-stone-50/80 transition-colors">
+                          <tr
+                            key={art.id}
+                            className={`hover:bg-stone-50/80 transition-colors ${hidden ? 'opacity-60 bg-stone-50/80' : ''}`}
+                          >
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <img
@@ -1524,8 +1578,13 @@ export const AdminDashboard: React.FC = () => {
                                   className="w-12 h-10 object-cover rounded shrink-0 border border-stone-200 bg-stone-100"
                                 />
                                 <div className="min-w-0">
-                                  <div className="font-bold text-stone-900 truncate max-w-xs sm:max-w-md">
+                                  <div className="font-bold text-stone-900 truncate max-w-xs sm:max-w-md flex items-center gap-1.5">
                                     {art.title}
+                                    {art.isWireStory && (
+                                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 bg-sky-100 text-sky-800 rounded">
+                                        Wire
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-[11px] text-stone-500 truncate max-w-xs">
                                     {art.summary}
@@ -1554,21 +1613,46 @@ export const AdminDashboard: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap">
-                              <select
-                                value={art.status}
-                                onChange={e => toggleArticleStatus(art.id, e.target.value as ArticleStatus)}
-                                className={`text-[11px] font-bold px-2 py-1 rounded border ${
-                                  art.status === 'published'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                    : art.status === 'draft'
-                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                    : 'bg-blue-50 text-blue-800 border-blue-200'
+                              {art.isWireStory ? (
+                                <span className="text-[11px] font-bold text-sky-800 bg-sky-50 px-2 py-1 rounded border border-sky-100">
+                                  Live wire
+                                </span>
+                              ) : (
+                                <select
+                                  value={art.status}
+                                  onChange={e => toggleArticleStatus(art.id, e.target.value as ArticleStatus)}
+                                  className={`text-[11px] font-bold px-2 py-1 rounded border ${
+                                    art.status === 'published'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                      : art.status === 'draft'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                                  }`}
+                                >
+                                  <option value="published">Published</option>
+                                  <option value="draft">Draft</option>
+                                  <option value="scheduled">Scheduled</option>
+                                </select>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => toggleArticleVisibility(art.id)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[11px] font-bold cursor-pointer border transition-colors ${
+                                  hidden
+                                    ? 'bg-white text-stone-600 border-stone-300 hover:bg-stone-100'
+                                    : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
                                 }`}
+                                title={
+                                  hidden
+                                    ? 'Hidden from readers — click to show on site'
+                                    : 'Visible on site — click to hide from readers'
+                                }
                               >
-                                <option value="published">Published</option>
-                                <option value="draft">Draft</option>
-                                <option value="scheduled">Scheduled</option>
-                              </select>
+                                {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                {hidden ? 'Hidden' : 'Showing'}
+                              </button>
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">

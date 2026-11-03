@@ -18,16 +18,15 @@ const SECTION_ORDER = [
 const FEATURED_LAYOUT = new Set(['politics', 'business', 'international']);
 
 export const HomePage: React.FC = () => {
-  const { articles, language, newsLoading, newsError, refreshNewsWire, activeCategories } =
+  const { publicArticles, language, newsLoading, newsError, refreshNewsWire, activeCategories } =
     useNews();
-  const publishedArticles = articles.filter(a => a.status === 'published');
+  const publishedArticles = publicArticles;
 
   const categorySections = useMemo(() => {
-    const published = articles.filter(a => a.status === 'published');
     const withStories = activeCategories
       .map(cat => ({
         category: cat,
-        count: articlesForCategory(published, cat).length,
+        count: articlesForCategory(publishedArticles, cat).length,
       }))
       .filter(row => row.count > 0);
 
@@ -39,7 +38,7 @@ export const HomePage: React.FC = () => {
       if (aRank !== bRank) return aRank - bRank;
       return b.count - a.count;
     });
-  }, [activeCategories, articles]);
+  }, [activeCategories, publishedArticles]);
 
   if (newsLoading && publishedArticles.length === 0) {
     return (

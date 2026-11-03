@@ -14,9 +14,9 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   category,
   layout = 'grid',
 }) => {
-  const { articles, setView, language } = useNews();
+  const { publicArticles, setView, language } = useNews();
 
-  const categoryArticles = articlesForCategory(articles, category).slice(0, 5);
+  const categoryArticles = articlesForCategory(publicArticles, category).slice(0, 5);
   if (categoryArticles.length === 0) return null;
 
   const title =

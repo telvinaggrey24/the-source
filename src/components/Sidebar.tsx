@@ -3,7 +3,7 @@ import { useNews } from '../context/NewsContext';
 import { CheckCircle2 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { articles, openArticle, addSubscriber, language, refreshNewsWire, newsLoading } = useNews();
+  const { publicArticles, openArticle, addSubscriber, language, refreshNewsWire, newsLoading } = useNews();
   const [emailInput, setEmailInput] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -18,7 +18,7 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const latest = articles.filter(a => a.status === 'published').slice(0, 8);
+  const latest = publicArticles.slice(0, 8);
 
   return (
     <aside className="space-y-6" aria-label="Sidebar">

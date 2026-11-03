@@ -6,7 +6,7 @@ export const SearchModal: React.FC = () => {
   const {
     isSearchOpen,
     setIsSearchOpen,
-    articles,
+    publicArticles,
     categories,
     openArticle,
     language,
@@ -32,8 +32,7 @@ export const SearchModal: React.FC = () => {
 
   // Filter articles
   const cleanQuery = query.trim().toLowerCase();
-  const searchResults = articles.filter(art => {
-    if (art.status !== 'published') return false;
+  const searchResults = publicArticles.filter(art => {
     if (selectedCategory !== 'all' && art.categoryId !== selectedCategory) return false;
 
     if (!cleanQuery) return true;

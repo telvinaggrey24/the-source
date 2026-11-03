@@ -10,7 +10,7 @@ interface CategoryArchiveProps {
 }
 
 export const CategoryArchive: React.FC<CategoryArchiveProps> = ({ categorySlug }) => {
-  const { categories, articles, setView, language } = useNews();
+  const { categories, publicArticles, setView, language } = useNews();
   const [sortBy, setSortBy] = useState<'latest' | 'popular'>('latest');
   const [visibleCount, setVisibleCount] = useState(9);
 
@@ -29,10 +29,10 @@ export const CategoryArchive: React.FC<CategoryArchiveProps> = ({ categorySlug }
     language === 'sw' && category.nameSwahili ? category.nameSwahili : category.name;
 
   const matchedArticles = useMemo(
-    () => articlesForCategory(articles, category),
+    () => articlesForCategory(publicArticles, category),
     // category fields — avoid recreating on every render via object identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [articles, category.id, category.slug, category.name, category.nameSwahili]
+    [publicArticles, category.id, category.slug, category.name, category.nameSwahili]
   );
 
   const sortedArticles = useMemo(() => {
