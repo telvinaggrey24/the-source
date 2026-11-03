@@ -1,6 +1,6 @@
 /**
- * News wire via NewsData.io (primary) with Google News RSS fallback.
- * API key from NEWSDATA_API_KEY — never expose as VITE_.
+ * News wire: NewsData.io + NewsAPI.org, with Google News RSS fallback.
+ * Keys: NEWSDATA_API_KEY, NEWSAPI_API_KEY (server-only, never VITE_).
  */
 
 const WIRE_AUTHOR = {
@@ -38,6 +38,11 @@ const NEWSDATA_QUERIES = [
   { q: 'Simba OR Yanga OR "Premier League" Tanzania', language: 'en', category: 'sports' },
 ];
 
+const NEWSAPI_QUERIES = [
+  { q: 'Tanzania OR "Dar es Salaam" OR "East Africa"', sortBy: 'publishedAt', language: 'en', pageSize: '40' },
+  { q: 'Simba OR Yanga OR Taifa Stars', sortBy: 'publishedAt', language: 'en', pageSize: '20' },
+];
+
 function sendJson(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -52,6 +57,12 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
   return base || `wire-${Date.now()}`;
+}
+
+function daysAgoIsoDate(days) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
 }
 
 function pickCategory(title, source, apiCategory) {
@@ -69,38 +80,44 @@ function pickCategory(title, source, apiCategory) {
   return { id: 'cat_international', name: 'International' };
 }
 
-function mapNewsDataItem(item, index) {
+function mapWireItem(item, index, providerTag) {
   const title = String(item.title || '').trim();
   const link = String(item.link || item.url || '').trim();
-  if (!title || !link) return null;
+  if (!title || !link || title === '[Removed]') return null;
 
   const source =
     item.source_name ||
     item.source_id ||
+    (item.source && item.source.name) ||
     (Array.isArray(item.creator) && item.creator[0]) ||
-    'NewsData';
+    providerTag;
   const apiCat = Array.isArray(item.category) ? item.category[0] : item.category;
   const category = pickCategory(title, source, apiCat);
   const description = String(item.description || item.content || '').trim();
   const summary =
-    description && description !== 'ONLY AVAILABLE IN PAID PLANS'
+    description &&
+    description !== 'ONLY AVAILABLE IN PAID PLANS' &&
+    !description.startsWith('[Removed]')
       ? description
       : `${title} — reporting via ${source}.`;
   const image =
     item.image_url ||
+    item.urlToImage ||
     PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length];
 
   let publishedAt;
   try {
-    publishedAt = item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString();
+    const rawDate = item.pubDate || item.publishedAt;
+    publishedAt = rawDate ? new Date(rawDate).toISOString() : new Date().toISOString();
   } catch {
     publishedAt = new Date().toISOString();
   }
 
   const slug = `${slugify(title)}-${index + 1}`;
+  const idSeed = item.article_id || slugify(link).slice(0, 20) || slugify(title).slice(0, 24);
 
   return {
-    id: `nd_${item.article_id || slugify(title).slice(0, 24)}_${index}`,
+    id: `${providerTag}_${idSeed}_${index}`,
     slug,
     title,
     titleEnglish: title,
@@ -136,7 +153,7 @@ function mapNewsDataItem(item, index) {
     isFeaturedHero: index === 0,
     isTrending: index < 8,
     isEditorsPick: index < 5,
-    tags: ['wire', 'newsdata', category.name.toLowerCase()],
+    tags: ['wire', providerTag, category.name.toLowerCase()],
     status: 'published',
     reactions: { insightful: 0, inspiring: 0, surprised: 0, concerned: 0 },
     comments: [],
@@ -150,6 +167,21 @@ function mapNewsDataItem(item, index) {
   };
 }
 
+async function fetchJson(url, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchNewsData(apiKey) {
   const jobs = NEWSDATA_QUERIES.map(async (params) => {
     const url = new URL('https://newsdata.io/api/1/latest');
@@ -157,18 +189,11 @@ async function fetchNewsData(apiKey) {
     for (const [k, v] of Object.entries(params)) {
       if (v) url.searchParams.set(k, v);
     }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-    try {
-      const res = await fetch(url.toString(), { signal: controller.signal });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.status === 'error') {
-        throw new Error(data?.results?.message || data?.message || `NewsData HTTP ${res.status}`);
-      }
-      return Array.isArray(data.results) ? data.results : [];
-    } finally {
-      clearTimeout(timer);
+    const { res, data } = await fetchJson(url.toString());
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data?.results?.message || data?.message || `NewsData HTTP ${res.status}`);
     }
+    return Array.isArray(data.results) ? data.results : [];
   });
 
   const settled = await Promise.allSettled(jobs);
@@ -176,10 +201,50 @@ async function fetchNewsData(apiKey) {
   for (const r of settled) {
     if (r.status === 'fulfilled') rows.push(...r.value);
   }
-  return rows;
+  return rows.map((item) => ({ ...item, _provider: 'newsdata' }));
 }
 
-/** Lightweight Google RSS fallback if NewsData is empty/unavailable */
+/**
+ * NewsAPI.org — GET /v2/everything
+ * Example: ?q=Apple&from=YYYY-MM-DD&sortBy=popularity&apiKey=API_KEY
+ */
+async function fetchNewsApiOrg(apiKey) {
+  const from = daysAgoIsoDate(3);
+  const jobs = NEWSAPI_QUERIES.map(async (params) => {
+    const url = new URL('https://newsapi.org/v2/everything');
+    url.searchParams.set('apiKey', apiKey);
+    url.searchParams.set('from', from);
+    for (const [k, v] of Object.entries(params)) {
+      if (v) url.searchParams.set(k, v);
+    }
+    const { res, data } = await fetchJson(url.toString());
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data?.message || `NewsAPI.org HTTP ${res.status}`);
+    }
+    return Array.isArray(data.articles) ? data.articles : [];
+  });
+
+  const settled = await Promise.allSettled(jobs);
+  const rows = [];
+  for (const r of settled) {
+    if (r.status === 'fulfilled') rows.push(...r.value);
+  }
+
+  // Normalize to shared wire shape
+  return rows.map((a) => ({
+    title: a.title,
+    link: a.url,
+    description: a.description,
+    content: a.content,
+    source_name: a.source?.name,
+    pubDate: a.publishedAt,
+    image_url: a.urlToImage,
+    article_id: slugify(a.url || a.title).slice(0, 24),
+    category: [],
+    _provider: 'newsapi',
+  }));
+}
+
 async function fetchGoogleFallback() {
   const feeds = [
     'https://news.google.com/rss?hl=en-TZ&gl=TZ&ceid=TZ:en',
@@ -230,6 +295,7 @@ async function fetchGoogleFallback() {
         article_id: undefined,
         image_url: null,
         category: [],
+        _provider: 'google',
       });
     }
   }
@@ -237,25 +303,52 @@ async function fetchGoogleFallback() {
 }
 
 async function buildArticles() {
-  const apiKey = (process.env.NEWSDATA_API_KEY || '').trim();
-  let rawItems = [];
+  const newsdataKey = (process.env.NEWSDATA_API_KEY || '').trim();
+  const newsapiKey = (process.env.NEWSAPI_API_KEY || process.env.NEWS_API_KEY || '').trim();
 
-  if (apiKey) {
-    try {
-      rawItems = await fetchNewsData(apiKey);
-    } catch (err) {
-      console.error('[api/news] NewsData failed:', err instanceof Error ? err.message : err);
-    }
-  } else {
-    console.warn('[api/news] NEWSDATA_API_KEY missing — using Google News fallback');
+  const providers = [];
+  const batches = [];
+
+  if (newsdataKey) {
+    batches.push(
+      fetchNewsData(newsdataKey)
+        .then((rows) => {
+          providers.push('newsdata.io');
+          return rows;
+        })
+        .catch((err) => {
+          console.error('[api/news] NewsData failed:', err instanceof Error ? err.message : err);
+          return [];
+        })
+    );
   }
+
+  if (newsapiKey) {
+    batches.push(
+      fetchNewsApiOrg(newsapiKey)
+        .then((rows) => {
+          providers.push('newsapi.org');
+          return rows;
+        })
+        .catch((err) => {
+          console.error('[api/news] NewsAPI.org failed:', err instanceof Error ? err.message : err);
+          return [];
+        })
+    );
+  }
+
+  const settled = await Promise.all(batches);
+  let rawItems = settled.flat();
 
   if (rawItems.length === 0) {
     rawItems = await fetchGoogleFallback();
+    if (rawItems.length) providers.push('google-news-fallback');
   }
 
   if (rawItems.length === 0) {
-    throw new Error('News wire returned no articles. Check NEWSDATA_API_KEY or try again.');
+    throw new Error(
+      'News wire returned no articles. Set NEWSDATA_API_KEY and/or NEWSAPI_API_KEY, then retry.'
+    );
   }
 
   const seen = new Set();
@@ -266,7 +359,7 @@ async function buildArticles() {
       .trim();
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    const mapped = mapNewsDataItem(item, articles.length);
+    const mapped = mapWireItem(item, articles.length, item._provider || 'wire');
     if (mapped) articles.push(mapped);
   }
 
@@ -274,13 +367,16 @@ async function buildArticles() {
     (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
   );
 
-  return articles.slice(0, 60).map((article, index) => ({
-    ...article,
-    isFeaturedHero: index === 0,
-    isBreaking: index < 3,
-    isTrending: index < 10,
-    isEditorsPick: index < 6,
-  }));
+  return {
+    providers,
+    articles: articles.slice(0, 80).map((article, index) => ({
+      ...article,
+      isFeaturedHero: index === 0,
+      isBreaking: index < 3,
+      isTrending: index < 10,
+      isEditorsPick: index < 6,
+    })),
+  };
 }
 
 export default async function handler(req, res) {
@@ -290,12 +386,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const articles = await buildArticles();
+    const { articles, providers } = await buildArticles();
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
     return sendJson(res, 200, {
       updatedAt: new Date().toISOString(),
       count: articles.length,
-      provider: process.env.NEWSDATA_API_KEY ? 'newsdata.io' : 'google-news-fallback',
+      provider: providers.join('+') || 'unknown',
+      providers,
       articles,
     });
   } catch (error) {
