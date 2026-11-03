@@ -165,6 +165,9 @@ interface NewsContextType {
 
 const STORAGE_KEYS = {
   ARTICLES: 'the_source_articles_v5_wire',
+  /** Editorial CMS posts only (never wiped by Google News refresh) */
+  CMS_ARTICLES: 'the_source_cms_articles_v1',
+  AUTHORS: 'the_source_authors_v1',
   CATEGORIES: 'the_source_categories_v3',
   SUBSCRIBERS: 'the_source_subscribers_v3',
   ADS: 'the_source_ads_v3',
@@ -184,14 +187,41 @@ const STORAGE_KEYS = {
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
 
+function loadCmsArticles(): Article[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.CMS_ARTICLES);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((a: Article) => a && !a.isWireStory) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCmsArticles(all: Article[]) {
+  try {
+    const cmsOnly = all.filter(a => !a.isWireStory);
+    localStorage.setItem(STORAGE_KEYS.CMS_ARTICLES, JSON.stringify(cmsOnly));
+  } catch {}
+}
+
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Articles: live Google News wire (no demo seed)
-  const [articles, setArticles] = useState<Article[]>([]);
+  // Merged list: CMS editorial posts + live Google News wire
+  const [articles, setArticles] = useState<Article[]>(() => loadCmsArticles());
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
 
-  // Authors state
-  const [authors] = useState<Author[]>(INITIAL_AUTHORS);
+  // Authors state (editable from staff CMS)
+  const [authors, setAuthors] = useState<Author[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.AUTHORS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_AUTHORS;
+  });
 
   const getAuthorById = (id: string): Author | undefined => {
     return (
@@ -426,7 +456,6 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNewsLoading(true);
     setNewsError(null);
     try {
-      // Drop any leftover demo articles from older builds
       try {
         localStorage.removeItem('the_source_articles_v4_bilingual');
         localStorage.removeItem(STORAGE_KEYS.ARTICLES);
@@ -447,10 +476,18 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to load live news wire');
       }
-      const nextArticles: Article[] = Array.isArray(data.articles) ? data.articles : [];
-      setArticles(nextArticles);
+      const wireArticles: Article[] = Array.isArray(data.articles) ? data.articles : [];
+      // Keep CMS posts; only replace wire stories
+      setArticles(prev => {
+        const cms = prev.filter(a => !a.isWireStory);
+        const merged = [...cms, ...wireArticles];
+        persistCmsArticles(merged);
+        return merged;
+      });
 
-      const ticker = nextArticles
+      const tickerSource = [...loadCmsArticles(), ...wireArticles];
+      const ticker = tickerSource
+        .filter(a => a.status === 'published')
         .slice(0, 5)
         .map(a => a.title)
         .join(' /// ');
@@ -458,12 +495,16 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAppearanceSettings(prev => ({
           ...prev,
           breakingNewsTicker: ticker,
-          featuredStoryId: nextArticles[0]?.id || '',
+          featuredStoryId: prev.featuredStoryId || tickerSource[0]?.id || '',
         }));
       }
     } catch (error) {
       setNewsError(error instanceof Error ? error.message : 'Failed to load live news wire');
-      setArticles([]);
+      // Never wipe CMS posts on wire failure
+      setArticles(prev => {
+        const cms = prev.filter(a => !a.isWireStory);
+        return cms.length > 0 ? cms : loadCmsArticles();
+      });
     } finally {
       setNewsLoading(false);
     }
@@ -473,7 +514,20 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void refreshNewsWire();
   }, []);
 
-  // LocalStorage synchronizations (wire articles are not persisted — always fresh from API)
+  // Persist editorial CMS articles + authors
+  useEffect(() => {
+    persistCmsArticles(articles);
+  }, [articles]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    } catch (e) {
+      console.warn('Storage write failed', e);
+    }
+  }, [authors]);
+
+  // LocalStorage synchronizations
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
@@ -657,29 +711,51 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       comments: [],
       commentsEnabled: data.commentsEnabled !== false,
+      isWireStory: false,
+      publishedAt: data.publishedAt || new Date().toISOString(),
     };
-    setArticles(prev => [newArticle, ...prev]);
+    setArticles(prev => {
+      const next = [newArticle, ...prev];
+      persistCmsArticles(next);
+      return next;
+    });
+    if (data.isFeaturedHero) {
+      setAppearanceSettings(prev => ({ ...prev, featuredStoryId: newArticle.id }));
+    }
     logAdminActivity('Created Article', newArticle.title, 'article', `Category: ${newArticle.categoryName}, Status: ${newArticle.status}`);
     return newArticle;
   };
 
   const updateArticle = (id: string, updates: Partial<Article>) => {
-    setArticles(prev =>
-      prev.map(art => {
+    setArticles(prev => {
+      const next = prev.map(art => {
         if (art.id === id) {
-          const updated = { ...art, ...updates, updatedAt: new Date().toISOString() };
-          return updated;
+          return {
+            ...art,
+            ...updates,
+            isWireStory: false,
+            updatedAt: new Date().toISOString(),
+          };
         }
         return art;
-      })
-    );
+      });
+      persistCmsArticles(next);
+      return next;
+    });
+    if (updates.isFeaturedHero) {
+      setAppearanceSettings(prev => ({ ...prev, featuredStoryId: id }));
+    }
     const target = articles.find(a => a.id === id)?.title || id;
     logAdminActivity('Updated Article', target, 'article', `Modified fields: ${Object.keys(updates).join(', ')}`);
   };
 
   const deleteArticle = (id: string) => {
     const target = articles.find(a => a.id === id)?.title || id;
-    setArticles(prev => prev.filter(art => art.id !== id));
+    setArticles(prev => {
+      const next = prev.filter(art => art.id !== id);
+      persistCmsArticles(next);
+      return next;
+    });
     logAdminActivity('Deleted Article', target, 'article', 'Permanently removed from newsroom database');
   };
 
@@ -879,8 +955,10 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }): UserProfile => {
     const email = data.email.trim().toLowerCase();
     const existing = registeredUsers.find(u => u.email?.toLowerCase() === email);
+    let user: UserProfile;
+
     if (existing) {
-      const updated: UserProfile = {
+      user = {
         ...existing,
         name: data.name.trim(),
         phone: data.phone || existing.phone,
@@ -890,26 +968,62 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status: 'active',
         lastLogin: existing.lastLogin,
       };
-      setRegisteredUsers(prev => prev.map(u => (u.id === existing.id ? updated : u)));
+      setRegisteredUsers(prev => prev.map(u => (u.id === existing.id ? user : u)));
       logAdminActivity('Updated Staff Member', data.name, 'user', `Role: ${data.role}`);
-      return updated;
+    } else {
+      user = {
+        id: `usr_${Date.now()}`,
+        name: data.name.trim(),
+        email,
+        phone: data.phone,
+        role: data.role,
+        staffTitle: data.staffTitle,
+        avatar: data.avatar,
+        status: 'active',
+        isSubscriber: false,
+        isDonor: false,
+        registeredAt: new Date().toISOString(),
+      };
+      setRegisteredUsers(prev => [user, ...prev]);
+      logAdminActivity('Created Staff Member', data.name, 'user', `Role: ${data.role}, Email: ${email}`);
     }
 
-    const user: UserProfile = {
-      id: `usr_${Date.now()}`,
-      name: data.name.trim(),
-      email,
-      phone: data.phone,
-      role: data.role,
-      staffTitle: data.staffTitle,
-      avatar: data.avatar,
-      status: 'active',
-      isSubscriber: false,
-      isDonor: false,
-      registeredAt: new Date().toISOString(),
-    };
-    setRegisteredUsers(prev => [user, ...prev]);
-    logAdminActivity('Created Staff Member', data.name, 'user', `Role: ${data.role}, Email: ${email}`);
+    // Keep byline list in sync for the article composer
+    setAuthors(prev => {
+      const authorId = `auth_${user.id}`;
+      const existingAuthor = prev.find(
+        a => a.email?.toLowerCase() === email || a.name.toLowerCase() === user.name.toLowerCase()
+      );
+      if (existingAuthor) {
+        return prev.map(a =>
+          a.id === existingAuthor.id
+            ? {
+                ...a,
+                name: user.name,
+                title: data.staffTitle || a.title,
+                avatar: data.avatar || a.avatar,
+                email,
+              }
+            : a
+        );
+      }
+      return [
+        {
+          id: authorId,
+          name: user.name,
+          title: data.staffTitle || data.role,
+          avatar:
+            data.avatar ||
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
+          bio: `${user.name} — ${data.staffTitle || data.role} at THE SOURCE.`,
+          location: 'Dar es Salaam',
+          joinedYear: String(new Date().getFullYear()),
+          email,
+        },
+        ...prev,
+      ];
+    });
+
     return user;
   };
 
@@ -1242,17 +1356,19 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // System Resets & Exports
   const resetToDefaults = () => {
-    void refreshNewsWire();
     setCategories(INITIAL_CATEGORIES);
     setSubscribers(INITIAL_SUBSCRIBERS);
     setAds(INITIAL_ADS);
     setMediaItems(INITIAL_MEDIA);
     setRegisteredUsers(INITIAL_REGISTERED_USERS);
+    setAuthors(INITIAL_AUTHORS);
     setAppearanceSettings(INITIAL_APPEARANCE_SETTINGS);
     setWebsiteSettings(INITIAL_WEBSITE_SETTINGS);
     setActivityLogs(INITIAL_ACTIVITY_LOGS);
 
     localStorage.removeItem(STORAGE_KEYS.ARTICLES);
+    localStorage.removeItem(STORAGE_KEYS.CMS_ARTICLES);
+    localStorage.removeItem(STORAGE_KEYS.AUTHORS);
     localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
     localStorage.removeItem(STORAGE_KEYS.SUBSCRIBERS);
     localStorage.removeItem(STORAGE_KEYS.ADS);
@@ -1262,6 +1378,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(STORAGE_KEYS.SETTINGS);
     localStorage.removeItem(STORAGE_KEYS.LOGS);
 
+    void refreshNewsWire();
     logAdminActivity('Restored Newsroom Defaults', 'System Core', 'settings', 'Reset all articles, categories, and settings');
   };
 

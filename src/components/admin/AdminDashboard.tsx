@@ -30,6 +30,7 @@ import {
   LogOut,
   Flame,
   Star,
+  Video,
   Search,
   CheckCircle2,
   AlertCircle,
@@ -135,6 +136,7 @@ export const AdminDashboard: React.FC = () => {
   const [articleSearch, setArticleSearch] = useState('');
   const [articleCategoryFilter, setArticleCategoryFilter] = useState('all');
   const [articleStatusFilter, setArticleStatusFilter] = useState<'all' | ArticleStatus>('all');
+  const [articleSourceFilter, setArticleSourceFilter] = useState<'cms' | 'wire' | 'all'>('cms');
 
   // Confirmation Modals
   const [deleteArticleModal, setDeleteArticleModal] = useState<{ isOpen: boolean; article: Article | null }>({
@@ -185,11 +187,11 @@ export const AdminDashboard: React.FC = () => {
   const [formKeyTakeaways, setFormKeyTakeaways] = useState('');
   const [formKeyTakeawaysEnglish, setFormKeyTakeawaysEnglish] = useState('');
   const [formCategoryId, setFormCategoryId] = useState(categories[0]?.id || 'cat_business');
-  const [formImage, setFormImage] = useState('/src/assets/images/hero_lead_tanzania_rail_1793043305338.jpg');
+  const [formImage, setFormImage] = useState('');
   const [formImageCaption, setFormImageCaption] = useState('');
   const [formImageCredit, setFormImageCredit] = useState('The Source / Newsroom');
   const [formImageAlt, setFormImageAlt] = useState('');
-  const [formAuthorId, setFormAuthorId] = useState(INITIAL_AUTHORS[0]?.id || 'author-1');
+  const [formAuthorId, setFormAuthorId] = useState(INITIAL_AUTHORS[0]?.id || 'auth_wire');
   const [formReadTime, setFormReadTime] = useState(4);
   const [formIsBreaking, setFormIsBreaking] = useState(false);
   const [formIsFeatured, setFormIsFeatured] = useState(false);
@@ -337,22 +339,32 @@ export const AdminDashboard: React.FC = () => {
 
   const maxCategoryCount = Math.max(...categoryChartData.map(c => c.count), 1);
 
-  // Filtered Articles
+  // Filtered Articles — default to CMS editorial posts (wire is read-only syndication)
   const filteredArticles = useMemo(() => {
-    return articles.filter(a => {
-      const authorName = typeof a.author === 'string' ? a.author : a.author?.name || '';
-      const matchesSearch =
-        articleSearch === '' ||
-        a.title.toLowerCase().includes(articleSearch.toLowerCase()) ||
-        a.summary.toLowerCase().includes(articleSearch.toLowerCase()) ||
-        authorName.toLowerCase().includes(articleSearch.toLowerCase());
+    return articles
+      .filter(a => {
+        const authorName = typeof a.author === 'string' ? a.author : a.author?.name || '';
+        const matchesSearch =
+          articleSearch === '' ||
+          a.title.toLowerCase().includes(articleSearch.toLowerCase()) ||
+          (a.summary || '').toLowerCase().includes(articleSearch.toLowerCase()) ||
+          authorName.toLowerCase().includes(articleSearch.toLowerCase());
 
-      const matchesCat = articleCategoryFilter === 'all' || a.categoryId === articleCategoryFilter;
-      const matchesStatus = articleStatusFilter === 'all' || a.status === articleStatusFilter;
+        const matchesCat = articleCategoryFilter === 'all' || a.categoryId === articleCategoryFilter;
+        const matchesStatus = articleStatusFilter === 'all' || a.status === articleStatusFilter;
+        const matchesSource =
+          articleSourceFilter === 'all' ||
+          (articleSourceFilter === 'cms' && !a.isWireStory) ||
+          (articleSourceFilter === 'wire' && !!a.isWireStory);
 
-      return matchesSearch && matchesCat && matchesStatus;
-    });
-  }, [articles, articleSearch, articleCategoryFilter, articleStatusFilter]);
+        return matchesSearch && matchesCat && matchesStatus && matchesSource;
+      })
+      .sort((a, b) => {
+        // CMS first, then newest
+        if (!!a.isWireStory !== !!b.isWireStory) return a.isWireStory ? 1 : -1;
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      });
+  }, [articles, articleSearch, articleCategoryFilter, articleStatusFilter, articleSourceFilter]);
 
   // Flattened Comments list with parent article context
   const flattenedComments = useMemo(() => {
@@ -578,110 +590,95 @@ export const AdminDashboard: React.FC = () => {
       ? formContentEnglish.split('\n\n').map(p => p.trim()).filter(Boolean)
       : [];
 
-    const customOrGeneratedSlug = formSlug.trim()
-      ? formSlug
-          .trim()
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, '')
-          .replace(/[\s_-]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-      : generatedSlug || `article-${Date.now()}`;
-
-    const finalSlug = customOrGeneratedSlug;
-
-    if (editingArticleId) {
-      updateArticle(editingArticleId, {
-        title: formTitle,
-        titleEnglish: formTitleEnglish || undefined,
-        subtitle: formSubtitle || '',
-        subtitleEnglish: formSubtitleEnglish || undefined,
-        summary: derivedSummary,
-        summaryEnglish: formSummaryEnglish || undefined,
-        content: contentParagraphs,
-        contentEnglish: contentParagraphsEnglish.length > 0 ? contentParagraphsEnglish : undefined,
-        keyTakeaways: keyTakeawaysArray.length > 0 ? keyTakeawaysArray : undefined,
-        keyTakeawaysEnglish: keyTakeawaysArrayEnglish.length > 0 ? keyTakeawaysArrayEnglish : undefined,
-        categoryId: assignedCat.id,
-        categoryName: assignedCat.name,
-        featuredImage: formImage,
-        imageCaption: formImageCaption || '',
-        imageCredit: formImageCredit || 'The Source / Newsroom',
-        imageAltText: formImageAlt || undefined,
-        author: assignedAuthor,
-        readTimeMinutes: Number(formReadTime) || 3,
-        isBreaking: formIsBreaking,
-        isFeaturedHero: formIsFeatured,
-        isTrending: formIsTrending,
-        isEditorsPick: formIsEditorsPick,
-        tags: tagsArray,
-        slug: finalSlug,
-        videoUrl: formVideoUrl.trim() || undefined,
-        imageGallery: formImageGallery.length > 0 ? formImageGallery : undefined,
-        status: finalStatus,
-        scheduledFor: formScheduledDate || undefined,
-        commentsEnabled: formCommentsEnabled,
-        seoMetaTitle: formSeoTitle || formTitle,
-        seoMetaDescription: formSeoDesc || derivedSummary.slice(0, 160),
-        seoCanonicalUrl: formCanonicalUrl || undefined,
-        seoSocialImage: formSocialImage || formImage,
-      });
-      showToast(`Habari "${formTitle.slice(0, 30)}..." imesasishwa kikamilifu.`);
-      if (finalStatus === 'published') {
-        setPublishedStoryModal({
-          isOpen: true,
-          slug: finalSlug,
-          title: formTitle,
-          categoryName: assignedCat.name,
-        });
-      }
-    } else {
-      addArticle({
-        title: formTitle,
-        titleEnglish: formTitleEnglish || undefined,
-        subtitle: formSubtitle || '',
-        subtitleEnglish: formSubtitleEnglish || undefined,
-        summary: derivedSummary,
-        summaryEnglish: formSummaryEnglish || undefined,
-        content: contentParagraphs,
-        contentEnglish: contentParagraphsEnglish.length > 0 ? contentParagraphsEnglish : undefined,
-        keyTakeaways: keyTakeawaysArray.length > 0 ? keyTakeawaysArray : undefined,
-        keyTakeawaysEnglish: keyTakeawaysArrayEnglish.length > 0 ? keyTakeawaysArrayEnglish : undefined,
-        categoryId: assignedCat.id,
-        categoryName: assignedCat.name,
-        featuredImage: formImage,
-        imageCaption: formImageCaption || '',
-        imageCredit: formImageCredit || 'The Source / Newsroom',
-        imageAltText: formImageAlt || undefined,
-        author: assignedAuthor,
-        publishedAt: new Date().toISOString(),
-        readTimeMinutes: Number(formReadTime) || 3,
-        isBreaking: formIsBreaking,
-        isFeaturedHero: formIsFeatured,
-        isTrending: formIsTrending,
-        isEditorsPick: formIsEditorsPick,
-        tags: tagsArray,
-        slug: finalSlug,
-        videoUrl: formVideoUrl.trim() || undefined,
-        imageGallery: formImageGallery.length > 0 ? formImageGallery : undefined,
-        status: finalStatus,
-        scheduledFor: formScheduledDate || undefined,
-        commentsEnabled: formCommentsEnabled,
-        seoMetaTitle: formSeoTitle || formTitle,
-        seoMetaDescription: formSeoDesc || derivedSummary.slice(0, 160),
-        seoCanonicalUrl: formCanonicalUrl || undefined,
-        seoSocialImage: formSocialImage || formImage,
-      });
-      showToast(`Habari "${formTitle.slice(0, 30)}..." imechapishwa kikamilifu!`);
-      if (finalStatus === 'published') {
-        setPublishedStoryModal({
-          isOpen: true,
-          slug: finalSlug,
-          title: formTitle,
-          categoryName: assignedCat.name,
-        });
-      }
+    if (!assignedCat) {
+      alert('No categories available. Create a category first.');
+      return;
+    }
+    if (!assignedAuthor) {
+      alert('No author available. Add a staff member first.');
+      return;
     }
 
+    const slugFromTitle = formTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
+
+    const finalSlug =
+      (formSlug.trim()
+        ? formSlug
+            .trim()
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+        : slugFromTitle) || `article-${Date.now()}`;
+
+    const featuredImage =
+      formImage.trim() ||
+      'https://images.unsplash.com/photo-1504711435509-084227bb48b6?auto=format&fit=crop&w=1200&q=80';
+
+    const payload = {
+      title: formTitle.trim(),
+      titleEnglish: formTitleEnglish || undefined,
+      subtitle: formSubtitle || '',
+      subtitleEnglish: formSubtitleEnglish || undefined,
+      summary: derivedSummary,
+      summaryEnglish: formSummaryEnglish || undefined,
+      content: contentParagraphs.length > 0 ? contentParagraphs : [derivedSummary],
+      contentEnglish: contentParagraphsEnglish.length > 0 ? contentParagraphsEnglish : undefined,
+      keyTakeaways: keyTakeawaysArray.length > 0 ? keyTakeawaysArray : undefined,
+      keyTakeawaysEnglish: keyTakeawaysArrayEnglish.length > 0 ? keyTakeawaysArrayEnglish : undefined,
+      categoryId: assignedCat.id,
+      categoryName: assignedCat.name,
+      featuredImage,
+      imageCaption: formImageCaption || '',
+      imageCredit: formImageCredit || 'The Source / Newsroom',
+      imageAltText: formImageAlt || undefined,
+      author: assignedAuthor,
+      readTimeMinutes: Number(formReadTime) || 3,
+      isBreaking: formIsBreaking,
+      isFeaturedHero: formIsFeatured,
+      isTrending: formIsTrending,
+      isEditorsPick: formIsEditorsPick,
+      tags: tagsArray.length > 0 ? tagsArray : ['the-source'],
+      slug: finalSlug,
+      videoUrl: formVideoUrl.trim() || undefined,
+      imageGallery: formImageGallery.length > 0 ? formImageGallery : undefined,
+      status: finalStatus,
+      scheduledFor: formScheduledDate || undefined,
+      commentsEnabled: formCommentsEnabled,
+      seoMetaTitle: formSeoTitle || formTitle.trim(),
+      seoMetaDescription: formSeoDesc || derivedSummary.slice(0, 160),
+      seoCanonicalUrl: formCanonicalUrl || undefined,
+      seoSocialImage: formSocialImage || featuredImage,
+      isWireStory: false as const,
+    };
+
+    if (editingArticleId) {
+      updateArticle(editingArticleId, payload);
+      showToast(`Habari "${formTitle.slice(0, 30)}..." imesasishwa kikamilifu.`);
+    } else {
+      addArticle({
+        ...payload,
+        publishedAt: new Date().toISOString(),
+      });
+      showToast(`Habari "${formTitle.slice(0, 30)}..." imechapishwa kikamilifu!`);
+    }
+
+    if (finalStatus === 'published') {
+      setPublishedStoryModal({
+        isOpen: true,
+        slug: finalSlug,
+        title: formTitle.trim(),
+        categoryName: assignedCat.name,
+      });
+    }
+
+    setEditingArticleId(null);
     setActiveTab('articles');
   };
 
@@ -1471,6 +1468,16 @@ export const AdminDashboard: React.FC = () => {
                     <option value="published">Published</option>
                     <option value="draft">Draft</option>
                     <option value="scheduled">Scheduled</option>
+                  </select>
+
+                  <select
+                    value={articleSourceFilter}
+                    onChange={e => setArticleSourceFilter(e.target.value as 'cms' | 'wire' | 'all')}
+                    className="px-3 py-2 bg-stone-50 border border-stone-300 rounded text-xs text-stone-800 font-medium focus:outline-none focus:border-red-500"
+                  >
+                    <option value="cms">Our posts (CMS)</option>
+                    <option value="wire">Wire only</option>
+                    <option value="all">CMS + Wire</option>
                   </select>
 
                   <button
