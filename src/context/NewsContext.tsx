@@ -44,11 +44,7 @@ import {
   INITIAL_APPEARANCE_SETTINGS,
   INITIAL_WEBSITE_SETTINGS,
 } from '../data/initialData';
-import {
-  detectLanguageFromCountry,
-  detectLanguageFromIp,
-  type SiteLanguage,
-} from '../utils/locale';
+import type { SiteLanguage } from '../utils/locale';
 
 interface NewsContextType {
   // Articles
@@ -164,7 +160,7 @@ interface NewsContextType {
   // General System
   language: SiteLanguage;
   setLanguage: (lang: SiteLanguage) => void;
-  /** True after the reader manually picks EN/SW (stops country auto-switch). */
+  /** True after the first-visit language popup (or header toggle) is answered. */
   languageManual: boolean;
   textSize: 'sm' | 'md' | 'lg' | 'xl';
   setTextSize: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
@@ -420,7 +416,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentAdminUser, setCurrentAdminUser] = useState<UserProfile | null>(null);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // Language: country default, unless reader already chose manually
+  // Language: original (SW) until the reader chooses — never auto-translate
   const [languageManual, setLanguageManual] = useState<boolean>(() => {
     try {
       return localStorage.getItem(STORAGE_KEYS.LANG_MANUAL) === '1';
@@ -433,7 +429,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stored = localStorage.getItem(STORAGE_KEYS.LANG);
       if (stored === 'sw' || stored === 'en') return stored;
     } catch {}
-    return detectLanguageFromCountry();
+    return 'sw';
   });
 
   // Text size state
@@ -1471,29 +1467,6 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(STORAGE_KEYS.LANG_MANUAL, '1');
     } catch {}
   };
-
-  const languageManualRef = useRef(languageManual);
-  languageManualRef.current = languageManual;
-
-  // Auto language from country (timezone → optional IP) unless user overrode
-  useEffect(() => {
-    if (languageManualRef.current) return;
-    let cancelled = false;
-    const apply = (lang: SiteLanguage) => {
-      if (cancelled || languageManualRef.current) return;
-      setLanguageState(lang);
-      try {
-        localStorage.setItem(STORAGE_KEYS.LANG, lang);
-      } catch {}
-    };
-    apply(detectLanguageFromCountry());
-    void detectLanguageFromIp().then(ipLang => {
-      if (ipLang) apply(ipLang);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const setTextSize = (size: 'sm' | 'md' | 'lg' | 'xl') => {
     setTextSizeState(size);

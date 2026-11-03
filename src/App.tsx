@@ -12,6 +12,7 @@ import { NewsletterSection } from './components/NewsletterSection';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { JobAndHealthPage } from './components/JobAndHealthPage';
 import { AuthModal } from './components/auth/AuthModal';
+import { LanguageWelcomeModal } from './components/LanguageWelcomeModal';
 import { AuthorProfilePage } from './components/AuthorProfilePage';
 import { AuthorsDirectoryPage } from './components/AuthorsDirectoryPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
       <BookmarksDrawer />
       <NewsletterSection isModal={true} />
       <AuthModal />
+      <LanguageWelcomeModal />
 
       {/* Mobile Bottom Navigation Bar (Phone) */}
       <MobileBottomNav />

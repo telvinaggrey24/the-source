@@ -142,7 +142,7 @@ export const Header: React.FC = () => {
               className="flex items-center border border-[#E6E6E6] text-[10px] font-bold uppercase tracking-wider"
               role="group"
               aria-label="Language"
-              title="Auto from country — tap to override"
+              title="Language — original (SW) or translation (EN)"
             >
               <button
                 type="button"
