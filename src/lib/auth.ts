@@ -10,14 +10,13 @@ import { auth, isFirebaseConfigured } from './firebase';
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+/** Sole CMS owner — only this Google account may enter admin. */
+export const SOLE_ADMIN_EMAIL = 'telvinaggrey24@gmail.com';
+
 export function getAdminAllowlist(): string[] {
-  const raw =
-    import.meta.env.VITE_ADMIN_EMAILS ||
-    'telvinaggrey24@gmail.com,admin@thesource.co.tz';
-  return raw
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
+  // Hard lock: only the owner Google account may enter CMS — ignore extra env entries
+  void import.meta.env.VITE_ADMIN_EMAILS;
+  return [SOLE_ADMIN_EMAIL];
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {

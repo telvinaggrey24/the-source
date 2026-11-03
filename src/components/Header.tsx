@@ -40,17 +40,15 @@ export const Header: React.FC = () => {
   const isCurrentCategory = (slug: string) =>
     view.type === 'category' && view.categorySlug === slug;
 
+  // Tight professional nav — secondary desks live under Sport / Culture
   const MAIN_NAV_ITEMS = [
     { label: 'Home', slug: 'home', isHome: true },
-    { label: 'Business', slug: 'business' },
     { label: 'Politics', slug: 'politics' },
-    { label: 'Sports', slug: 'sports' },
-    { label: 'Football', slug: 'football' },
-    { label: 'Entertainment', slug: 'entertainment' },
-    { label: 'Music', slug: 'music' },
-    { label: 'Jobs', slug: 'jobs' },
-    { label: 'Technology', slug: 'technology' },
+    { label: 'Business', slug: 'business' },
     { label: 'World', slug: 'international' },
+    { label: 'Sport', slug: 'sports' },
+    { label: 'Tech', slug: 'technology' },
+    { label: 'Culture', slug: 'entertainment' },
   ];
 
   const visibleNavItems = MAIN_NAV_ITEMS.filter(item => {

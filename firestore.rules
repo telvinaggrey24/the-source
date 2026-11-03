@@ -6,15 +6,14 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'telvinaggrey24@gmail.com' ||
-        request.auth.token.email == 'admin@thesource.co.tz'
-      );
+      // Sole CMS owner — no other Google account may write
+      return isSignedIn() && request.auth.token.email == 'telvinaggrey24@gmail.com';
     }
 
     match /articles/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
+      // Public site only sees published CMS posts; admins see drafts too
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /categories/{id} {

@@ -71,7 +71,7 @@ export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   },
   sports: {
     slug: 'sports',
-    name: 'Sports',
+    name: 'Sport',
     color: '#EA580C',
     activeBg: 'bg-amber-600',
     activeBorder: 'border-amber-600',
@@ -105,7 +105,7 @@ export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   },
   entertainment: {
     slug: 'entertainment',
-    name: 'Entertainment',
+    name: 'Culture',
     color: '#DB2777',
     activeBg: 'bg-pink-600',
     activeBorder: 'border-pink-600',
@@ -156,7 +156,7 @@ export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   },
   technology: {
     slug: 'technology',
-    name: 'Technology',
+    name: 'Tech',
     color: '#2563EB',
     activeBg: 'bg-blue-600',
     activeBorder: 'border-blue-600',
@@ -173,7 +173,7 @@ export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   },
   international: {
     slug: 'international',
-    name: 'International',
+    name: 'World',
     color: '#DC2626',
     activeBg: 'bg-red-600',
     activeBorder: 'border-red-600',

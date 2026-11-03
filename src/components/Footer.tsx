@@ -66,104 +66,77 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Directory Columns with the 10 Categories & Services */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 pb-8 border-b border-stone-800">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-8 border-b border-stone-800">
           <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">News & Affairs</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Sections</h4>
             <ul className="space-y-1.5 text-stone-400">
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'politics' })} className="hover:text-white cursor-pointer">
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'politics' })} className="hover:text-white cursor-pointer">
                   Politics
                 </button>
               </li>
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'international' })} className="hover:text-white cursor-pointer">
-                  International News
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'business' })} className="hover:text-white cursor-pointer">
+                  Business
                 </button>
               </li>
               <li>
-                <button onClick={() => setView({ type: 'page', pageId: 'verify' })} className="hover:text-white cursor-pointer">
-                  Forensic Verification
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setView({ type: 'home' })} className="hover:text-white cursor-pointer">
-                  Top Stories
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'international' })} className="hover:text-white cursor-pointer">
+                  World
                 </button>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Business & Tech</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">More</h4>
             <ul className="space-y-1.5 text-stone-400">
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'business' })} className="hover:text-white cursor-pointer">
-                  Business & Markets
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'sports' })} className="hover:text-white cursor-pointer">
+                  Sport
                 </button>
               </li>
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'technology' })} className="hover:text-white cursor-pointer">
-                  Technology & Startups
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'technology' })} className="hover:text-white cursor-pointer">
+                  Tech
                 </button>
               </li>
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'jobs' })} className="hover:text-white cursor-pointer text-emerald-400 font-semibold">
-                  Jobs & Vacancies
+                <button type="button" onClick={() => setView({ type: 'category', categorySlug: 'entertainment' })} className="hover:text-white cursor-pointer">
+                  Culture
                 </button>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Sports</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Newsroom</h4>
             <ul className="space-y-1.5 text-stone-400">
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'football' })} className="hover:text-white cursor-pointer">
-                  Football Coverage
+                <button type="button" onClick={() => setView({ type: 'home' })} className="hover:text-white cursor-pointer">
+                  Top stories
                 </button>
               </li>
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'sports' })} className="hover:text-white cursor-pointer">
-                  Sports & Athletics
+                <button type="button" onClick={() => setView({ type: 'authors-directory' })} className="hover:text-white cursor-pointer">
+                  Authors
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={() => setView({ type: 'page', pageId: 'policy' })} className="hover:text-white cursor-pointer">
+                  Editorial guidelines
                 </button>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Culture & Life</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Staff</h4>
             <ul className="space-y-1.5 text-stone-400">
               <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'entertainment' })} className="hover:text-white cursor-pointer">
-                  Entertainment
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setView({ type: 'category', categorySlug: 'music' })} className="hover:text-white cursor-pointer">
-                  Music
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Trust & Access</h4>
-            <ul className="space-y-1.5 text-stone-400">
-              <li>
-                <button onClick={() => setView({ type: 'authors-directory' })} className="hover:text-white cursor-pointer">
-                  Journalists & Editors
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setView({ type: 'page', pageId: 'policy' })} className="hover:text-white cursor-pointer">
-                  Editorial Guidelines
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setView({ type: 'admin' })} className="hover:text-white text-stone-300 font-semibold cursor-pointer flex items-center gap-1">
+                <button type="button" onClick={() => setView({ type: 'admin' })} className="hover:text-white text-stone-300 font-semibold cursor-pointer flex items-center gap-1">
                   <Shield className="w-3 h-3 text-red-500" />
-                  <span>Admin Dashboard</span>
+                  <span>Admin</span>
                 </button>
               </li>
             </ul>

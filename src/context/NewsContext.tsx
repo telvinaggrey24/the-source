@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import {
   Article,
   Category,
@@ -26,7 +26,15 @@ import {
   subscribeToAuth,
 } from '../lib/auth';
 import {
+  deleteCmsArticle,
+  fetchCmsArticles,
+  mergeCmsArticles,
+  migrateLocalCmsToFirestore,
+  upsertCmsArticle,
+} from '../lib/cmsArticles';
+import {
   INITIAL_CATEGORIES,
+  PRIMARY_CATEGORY_SLUGS,
   INITIAL_SUBSCRIBERS,
   INITIAL_ADS,
   INITIAL_AUTHORS,
@@ -168,7 +176,7 @@ const STORAGE_KEYS = {
   /** Editorial CMS posts only (never wiped by wire refresh) */
   CMS_ARTICLES: 'the_source_cms_articles_v1',
   AUTHORS: 'the_source_authors_v1',
-  CATEGORIES: 'the_source_categories_v3',
+  CATEGORIES: 'the_source_categories_v4',
   SUBSCRIBERS: 'the_source_subscribers_v3',
   ADS: 'the_source_ads_v3',
   BOOKMARKS: 'the_source_bookmarks_v3',
@@ -234,11 +242,20 @@ function persistCmsArticles(all: Article[]) {
   } catch {}
 }
 
+function syncCmsToCloud(article: Article | undefined) {
+  if (!article || article.isWireStory || isGoogleNewsArtifact(article)) return;
+  void upsertCmsArticle(article).catch(err =>
+    console.warn('[cms] Firestore save failed — post may only exist on this browser', err)
+  );
+}
+
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Merged list: CMS editorial posts + live wire (NewsData / NewsAPI)
   const [articles, setArticles] = useState<Article[]>(() => loadCmsArticles());
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
+  const articlesRef = useRef(articles);
+  articlesRef.current = articles;
 
   // Authors state (editable from staff CMS)
   const [authors, setAuthors] = useState<Author[]>(() => {
@@ -266,18 +283,22 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Categories state
+  // Categories state — primary desks only on public nav
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
+      localStorage.removeItem('the_source_categories_v3');
       const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
       if (stored) {
         const parsed: Category[] = JSON.parse(stored);
-        // Verify it contains the new required categories (business, politics, football, etc.)
-        const hasBusiness = parsed.some(c => c.slug === 'business');
-        const hasFootball = parsed.some(c => c.slug === 'football');
-        const hasInternational = parsed.some(c => c.slug === 'international');
-        if (hasBusiness && hasFootball && hasInternational) {
-          return parsed;
+        if (Array.isArray(parsed) && parsed.some(c => c.slug === 'politics')) {
+          return parsed.map(c => ({
+            ...c,
+            isActive: PRIMARY_CATEGORY_SLUGS.includes(
+              c.slug as (typeof PRIMARY_CATEGORY_SLUGS)[number]
+            )
+              ? c.isActive !== false
+              : false,
+          }));
         }
       }
       return INITIAL_CATEGORIES;
@@ -288,7 +309,11 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Active categories for navigation and public views
   const activeCategories = useMemo(() => {
-    return categories.filter(c => c.isActive !== false);
+    return categories.filter(
+      c =>
+        c.isActive !== false &&
+        PRIMARY_CATEGORY_SLUGS.includes(c.slug as (typeof PRIMARY_CATEGORY_SLUGS)[number])
+    );
   }, [categories]);
 
   // Media Items state
@@ -541,8 +566,27 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Load shared CMS posts from Firestore, then refresh the live wire
   useEffect(() => {
-    void refreshNewsWire();
+    let cancelled = false;
+    (async () => {
+      const remoteCms = await fetchCmsArticles();
+      if (cancelled) return;
+      if (remoteCms.length > 0) {
+        setArticles(prev => {
+          const localCms = prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
+          const wire = prev.filter(a => a.isWireStory);
+          const mergedCms = mergeCmsArticles(localCms, remoteCms);
+          persistCmsArticles(mergedCms);
+          return [...mergedCms, ...wire];
+        });
+      }
+      await refreshNewsWire();
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist editorial CMS articles + authors
@@ -697,7 +741,9 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fbUser = await signInWithGoogle();
       if (!isAdminEmail(fbUser.email)) {
         await signOutFirebase();
-        throw new Error('This Google account is not authorized for CMS admin access.');
+        throw new Error(
+          'Access denied. Only telvinaggrey24@gmail.com can open the CMS admin.'
+        );
       }
       const profile = firebaseUserToProfile(fbUser, 'admin');
       applyFirebaseUser(profile, true);
@@ -728,7 +774,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Article CRUD & Controls
+  // Article CRUD & Controls (local + Firestore so other visitors see published posts)
   const addArticle = (data: Omit<Article, 'id' | 'viewsCount' | 'reactions' | 'comments'>): Article => {
     const newArticle: Article = {
       ...data,
@@ -750,6 +796,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       persistCmsArticles(next);
       return next;
     });
+    syncCmsToCloud(newArticle);
     if (data.isFeaturedHero) {
       setAppearanceSettings(prev => ({ ...prev, featuredStoryId: newArticle.id }));
     }
@@ -758,21 +805,24 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateArticle = (id: string, updates: Partial<Article>) => {
+    let updated: Article | undefined;
     setArticles(prev => {
       const next = prev.map(art => {
         if (art.id === id) {
-          return {
+          updated = {
             ...art,
             ...updates,
             isWireStory: false,
             updatedAt: new Date().toISOString(),
           };
+          return updated;
         }
         return art;
       });
       persistCmsArticles(next);
       return next;
     });
+    syncCmsToCloud(updated);
     if (updates.isFeaturedHero) {
       setAppearanceSettings(prev => ({ ...prev, featuredStoryId: id }));
     }
@@ -787,12 +837,14 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       persistCmsArticles(next);
       return next;
     });
+    void deleteCmsArticle(id).catch(err => console.warn('[cms] Firestore delete failed', err));
     logAdminActivity('Deleted Article', target, 'article', 'Permanently removed from newsroom database');
   };
 
   const toggleBreaking = (id: string) => {
-    setArticles(prev =>
-      prev.map(art => {
+    let updated: Article | undefined;
+    setArticles(prev => {
+      const next = prev.map(art => {
         if (art.id === id) {
           const isBreaking = !art.isBreaking;
           logAdminActivity(
@@ -801,41 +853,62 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
             'article',
             isBreaking ? 'Broadcasted on top marquee ticker' : 'Removed from ticker'
           );
-          return { ...art, isBreaking };
+          updated = { ...art, isBreaking, updatedAt: new Date().toISOString() };
+          return updated;
         }
         return art;
-      })
-    );
+      });
+      persistCmsArticles(next);
+      return next;
+    });
+    syncCmsToCloud(updated);
   };
 
   const setFeaturedHero = (id: string) => {
-    setArticles(prev =>
-      prev.map(art => {
+    const synced: Article[] = [];
+    setArticles(prev => {
+      const next = prev.map(art => {
         if (art.id === id) {
           logAdminActivity('Set Featured Hero Story', art.title, 'article', 'Promoted to frontpage lead position');
-          return { ...art, isFeaturedHero: true };
+          const featured = { ...art, isFeaturedHero: true, updatedAt: new Date().toISOString() };
+          synced.push(featured);
+          return featured;
+        }
+        if (art.isFeaturedHero && !art.isWireStory) {
+          const cleared = { ...art, isFeaturedHero: false, updatedAt: new Date().toISOString() };
+          synced.push(cleared);
+          return cleared;
         }
         return { ...art, isFeaturedHero: false };
-      })
-    );
+      });
+      persistCmsArticles(next);
+      return next;
+    });
+    synced.forEach(syncCmsToCloud);
     setAppearanceSettings(prev => ({ ...prev, featuredStoryId: id }));
   };
 
   const toggleArticleStatus = (id: string, newStatus: ArticleStatus) => {
-    setArticles(prev =>
-      prev.map(art => {
+    let updated: Article | undefined;
+    setArticles(prev => {
+      const next = prev.map(art => {
         if (art.id === id) {
           logAdminActivity(`Changed Article Status to ${newStatus}`, art.title, 'article');
-          return { ...art, status: newStatus };
+          updated = { ...art, status: newStatus, updatedAt: new Date().toISOString() };
+          return updated;
         }
         return art;
-      })
-    );
+      });
+      persistCmsArticles(next);
+      return next;
+    });
+    syncCmsToCloud(updated);
   };
 
   const toggleCommentsEnabled = (id: string) => {
-    setArticles(prev =>
-      prev.map(art => {
+    let updated: Article | undefined;
+    setArticles(prev => {
+      const next = prev.map(art => {
         if (art.id === id) {
           const commentsEnabled = art.commentsEnabled === false;
           logAdminActivity(
@@ -843,11 +916,15 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
             art.title,
             'comment'
           );
-          return { ...art, commentsEnabled };
+          updated = { ...art, commentsEnabled, updatedAt: new Date().toISOString() };
+          return updated;
         }
         return art;
-      })
-    );
+      });
+      persistCmsArticles(next);
+      return next;
+    });
+    syncCmsToCloud(updated);
   };
 
   const incrementViews = (id: string) => {
@@ -1285,6 +1362,17 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const asAdmin = isAdminEmail(user.email);
       const profile = firebaseUserToProfile(user, asAdmin ? 'admin' : 'reader');
       applyFirebaseUser(profile, asAdmin);
+      // Push browser-only posts to Firestore so other devices can see them
+      if (asAdmin) {
+        const localCms = articlesRef.current.filter(
+          a => !a.isWireStory && !isGoogleNewsArtifact(a)
+        );
+        void migrateLocalCmsToFirestore(localCms).then(count => {
+          if (count > 0) {
+            console.info(`[cms] Synced ${count} editorial post(s) to Firestore`);
+          }
+        });
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

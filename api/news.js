@@ -15,13 +15,34 @@ const WIRE_AUTHOR = {
 };
 
 const CATEGORY_RULES = [
-  { id: 'cat_football', name: 'Football', words: ['football', 'soccer', 'simba', 'yanga', 'premier league', 'caf', 'goal'] },
-  { id: 'cat_sports', name: 'Sports', words: ['sport', 'athletics', 'olympic', 'cricket', 'boxing', 'tennis'] },
+  {
+    id: 'cat_sports',
+    name: 'Sport',
+    words: [
+      'football',
+      'soccer',
+      'simba',
+      'yanga',
+      'premier league',
+      'caf',
+      'goal',
+      'sport',
+      'athletics',
+      'olympic',
+      'cricket',
+      'boxing',
+      'tennis',
+    ],
+  },
   { id: 'cat_business', name: 'Business', words: ['business', 'economy', 'market', 'bank', 'trade', 'finance', 'investment', 'shilling'] },
   { id: 'cat_politics', name: 'Politics', words: ['politics', 'election', 'parliament', 'government', 'president', 'minister', 'ccm', 'opposition'] },
-  { id: 'cat_technology', name: 'Technology', words: ['tech', 'technology', 'ai ', 'digital', 'startup', 'cyber', 'telecom', 'internet'] },
-  { id: 'cat_entertainment', name: 'Entertainment', words: ['entertainment', 'film', 'movie', 'celebrity', 'tv ', 'music', 'bongo'] },
-  { id: 'cat_international', name: 'International', words: ['kenya', 'uganda', 'rwanda', 'ethiopia', 'un ', 'africa', 'global', 'china', 'usa', 'mali'] },
+  { id: 'cat_technology', name: 'Tech', words: ['tech', 'technology', 'ai ', 'digital', 'startup', 'cyber', 'telecom', 'internet'] },
+  {
+    id: 'cat_entertainment',
+    name: 'Culture',
+    words: ['entertainment', 'film', 'movie', 'celebrity', 'tv ', 'music', 'bongo', 'culture'],
+  },
+  { id: 'cat_international', name: 'World', words: ['kenya', 'uganda', 'rwanda', 'ethiopia', 'un ', 'africa', 'global', 'china', 'usa', 'mali'] },
 ];
 
 const PLACEHOLDER_IMAGES = [
@@ -67,17 +88,19 @@ function daysAgoIsoDate(days) {
 
 function pickCategory(title, source, apiCategory) {
   const api = String(apiCategory || '').toLowerCase();
-  if (api.includes('sport')) return { id: 'cat_sports', name: 'Sports' };
+  if (api.includes('sport')) return { id: 'cat_sports', name: 'Sport' };
   if (api.includes('business') || api.includes('top')) return { id: 'cat_business', name: 'Business' };
   if (api.includes('politic')) return { id: 'cat_politics', name: 'Politics' };
-  if (api.includes('tech') || api.includes('science')) return { id: 'cat_technology', name: 'Technology' };
-  if (api.includes('entertainment')) return { id: 'cat_entertainment', name: 'Entertainment' };
+  if (api.includes('tech') || api.includes('science')) return { id: 'cat_technology', name: 'Tech' };
+  if (api.includes('entertainment') || api.includes('music')) {
+    return { id: 'cat_entertainment', name: 'Culture' };
+  }
 
   const hay = `${title} ${source}`.toLowerCase();
   for (const rule of CATEGORY_RULES) {
     if (rule.words.some((w) => hay.includes(w))) return { id: rule.id, name: rule.name };
   }
-  return { id: 'cat_international', name: 'International' };
+  return { id: 'cat_international', name: 'World' };
 }
 
 function isGoogleNewsItem(item) {

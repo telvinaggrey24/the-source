@@ -936,7 +936,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <p className="mt-6 pt-5 border-t border-stone-800 text-[11px] text-stone-500">
-                  Allowed admin Google accounts are set in <code className="text-stone-400">VITE_ADMIN_EMAILS</code>.
+                  CMS access is locked to <code className="text-stone-400">telvinaggrey24@gmail.com</code> only.
                 </p>
               </div>
             </div>
