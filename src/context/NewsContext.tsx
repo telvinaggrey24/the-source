@@ -250,11 +250,23 @@ function persistCmsArticles(all: Article[]) {
   } catch {}
 }
 
-function syncCmsToCloud(article: Article | undefined) {
-  if (!article || article.isWireStory || isGoogleNewsArtifact(article)) return;
-  void upsertCmsArticle(article).catch(err =>
-    console.warn('[cms] Firestore save failed — post may only exist on this browser', err)
-  );
+function syncCmsToCloud(article: Article | undefined): Promise<void> {
+  if (!article || article.isWireStory || isGoogleNewsArtifact(article)) {
+    return Promise.resolve();
+  }
+  return upsertCmsArticle(article).catch(err => {
+    const message =
+      err instanceof Error
+        ? err.message
+        : 'Firestore save failed — post may only exist on this browser.';
+    console.warn('[cms]', message, err);
+    if (typeof window !== 'undefined') {
+      window.alert(
+        `Post saved on this device only.\n\n${message}\n\nCheck Firebase → Firestore → Data for an "articles" collection after you fix this.`
+      );
+    }
+    throw err;
+  });
 }
 
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -404,28 +416,9 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Current Logged-in Admin User
-  const [currentAdminUser, setCurrentAdminUser] = useState<UserProfile | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ADMIN_USER);
-      if (stored) return JSON.parse(stored);
-      if (localStorage.getItem(STORAGE_KEYS.AUTH) === 'true') {
-        return INITIAL_REGISTERED_USERS[0];
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Admin Auth state
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.AUTH) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Admin session comes only from live Firebase Google Auth (needed for Firestore writes)
+  const [currentAdminUser, setCurrentAdminUser] = useState<UserProfile | null>(null);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Language: country default, unless reader already chose manually
   const [languageManual, setLanguageManual] = useState<boolean>(() => {

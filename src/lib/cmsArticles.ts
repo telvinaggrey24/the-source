@@ -7,9 +7,25 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import type { Article } from '../types';
-import { db, isFirebaseConfigured } from './firebase';
+import { auth, db, isFirebaseConfigured } from './firebase';
+import { isAdminEmail } from './auth';
 
 const COLLECTION = 'articles';
+
+export function assertCanWriteCms(): void {
+  if (!db || !isFirebaseConfigured) {
+    throw new Error('Firebase is not configured on this site build.');
+  }
+  const user = auth?.currentUser;
+  if (!user) {
+    throw new Error(
+      'Not signed into Firebase. Open Staff → Sign in with Google (telvinaggrey24@gmail.com), then publish again.'
+    );
+  }
+  if (!isAdminEmail(user.email)) {
+    throw new Error(`Signed in as ${user.email}, but only telvinaggrey24@gmail.com can publish.`);
+  }
+}
 
 /** Firestore rejects `undefined` field values. */
 export function stripUndefined<T>(value: T): T {
@@ -53,18 +69,21 @@ export async function fetchCmsArticles(): Promise<Article[]> {
 }
 
 export async function upsertCmsArticle(article: Article): Promise<void> {
-  if (!db || !isFirebaseConfigured || !isCmsArticle(article)) return;
+  if (!isCmsArticle(article)) return;
+  assertCanWriteCms();
   const payload = stripUndefined({
     ...article,
     id: article.id,
     isWireStory: false,
+    status: article.status || 'published',
   });
-  await setDoc(doc(db, COLLECTION, article.id), payload, { merge: true });
+  await setDoc(doc(db!, COLLECTION, article.id), payload, { merge: true });
 }
 
 export async function deleteCmsArticle(id: string): Promise<void> {
-  if (!db || !isFirebaseConfigured || !id) return;
-  await deleteDoc(doc(db, COLLECTION, id));
+  if (!id) return;
+  assertCanWriteCms();
+  await deleteDoc(doc(db!, COLLECTION, id));
 }
 
 export function mergeCmsArticles(local: Article[], remote: Article[]): Article[] {
@@ -88,7 +107,11 @@ export function mergeCmsArticles(local: Article[], remote: Article[]): Article[]
 
 /** Push browser-only CMS posts to Firestore so other visitors can see them. */
 export async function migrateLocalCmsToFirestore(articles: Article[]): Promise<number> {
-  if (!db || !isFirebaseConfigured) return 0;
+  try {
+    assertCanWriteCms();
+  } catch {
+    return 0;
+  }
   const cms = articles.filter(isCmsArticle);
   if (cms.length === 0) return 0;
   let saved = 0;

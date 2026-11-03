@@ -11,9 +11,12 @@ service cloud.firestore {
     }
 
     match /articles/{id} {
-      // Public site only sees published CMS posts; admins see drafts too
-      allow read: if resource.data.status == 'published' || isAdmin();
-      allow create, update, delete: if isAdmin();
+      // Public can read published posts; admin can read/write everything
+      allow read: if isAdmin() || (resource.data.keys().hasAll(['status']) && resource.data.status == 'published');
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasAll(['title', 'status', 'categoryId'])
+        && request.resource.data.get('isWireStory', false) == false;
+      allow update, delete: if isAdmin();
     }
 
     match /categories/{id} {
