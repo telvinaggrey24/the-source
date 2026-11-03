@@ -19,7 +19,6 @@ import {
   ArticleStatus,
 } from '../types';
 import {
-  INITIAL_ARTICLES,
   INITIAL_CATEGORIES,
   INITIAL_SUBSCRIBERS,
   INITIAL_ADS,
@@ -74,14 +73,6 @@ interface NewsContextType {
 
   // User Management & RBAC
   registeredUsers: UserProfile[];
-  createStaffUser: (data: {
-    name: string;
-    email: string;
-    phone?: string;
-    role: UserRole;
-    staffTitle?: string;
-    avatar?: string;
-  }) => UserProfile;
   updateUserRole: (userId: string, newRole: UserRole) => void;
   toggleUserStatus: (userId: string) => void;
   deleteUser: (userId: string) => void;
@@ -124,8 +115,8 @@ interface NewsContextType {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   currentUser: UserProfile | null;
-  loginWithPhone: (phone: string, name?: string, additionalDetails?: { email?: string; location?: string; country?: string }) => UserProfile;
-  loginWithEmail: (email: string, name?: string, additionalDetails?: { phone?: string; location?: string; country?: string }) => UserProfile;
+  loginWithPhone: (phone: string, name?: string) => UserProfile;
+  loginWithEmail: (email: string, name?: string) => UserProfile;
   logoutUser: () => void;
 
   // Donations
@@ -149,67 +140,42 @@ interface NewsContextType {
   resetToDefaults: () => void;
   exportSubscribersCSV: () => void;
   exportArticlesJson: () => void;
+
+  // Live Google News wire
+  newsLoading: boolean;
+  newsError: string | null;
+  refreshNewsWire: () => Promise<void>;
 }
 
 const STORAGE_KEYS = {
-  ARTICLES: 'the_source_articles_v4_bilingual',
-  CATEGORIES: 'the_source_categories_v2',
-  SUBSCRIBERS: 'the_source_subscribers_v2',
-  ADS: 'the_source_ads_v2',
-  BOOKMARKS: 'the_source_bookmarks_v2',
+  ARTICLES: 'the_source_articles_v5_wire',
+  CATEGORIES: 'the_source_categories_v3',
+  SUBSCRIBERS: 'the_source_subscribers_v3',
+  ADS: 'the_source_ads_v3',
+  BOOKMARKS: 'the_source_bookmarks_v3',
   AUTH: 'the_source_admin_auth_v2',
   ADMIN_USER: 'the_source_admin_user_v2',
   LANG: 'the_source_lang_v2',
   TEXT_SIZE: 'the_source_text_size_v2',
   USER: 'the_source_current_user_v2',
   DONATIONS: 'the_source_donations_v2',
-  MEDIA: 'the_source_media_v2',
-  USERS: 'the_source_users_v2',
-  APPEARANCE: 'the_source_appearance_v2',
-  SETTINGS: 'the_source_settings_v2',
-  LOGS: 'the_source_logs_v2',
+  MEDIA: 'the_source_media_v3',
+  USERS: 'the_source_users_v3',
+  APPEARANCE: 'the_source_appearance_v3',
+  SETTINGS: 'the_source_settings_v3',
+  LOGS: 'the_source_logs_v3',
 };
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
 
 export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Articles state (Dynamic real database storage)
-  const [articles, setArticles] = useState<Article[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ARTICLES);
-      if (stored !== null) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-      return INITIAL_ARTICLES;
-    } catch {
-      return INITIAL_ARTICLES;
-    }
-  });
+  // Articles: live Google News wire (no demo seed)
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState<string | null>(null);
 
   // Authors state
-  const [authors, setAuthors] = useState<Author[]>(() => {
-    try {
-      const stored = localStorage.getItem('the_source_authors_v2');
-      if (stored !== null) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-      return INITIAL_AUTHORS;
-    } catch {
-      return INITIAL_AUTHORS;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('the_source_authors_v2', JSON.stringify(authors));
-    } catch {}
-  }, [authors]);
+  const [authors] = useState<Author[]>(INITIAL_AUTHORS);
 
   const getAuthorById = (id: string): Author | undefined => {
     return (
@@ -225,13 +191,17 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Categories state (Dynamic real database storage)
+  // Categories state
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      if (stored !== null) {
+      if (stored) {
         const parsed: Category[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        // Verify it contains the new required categories (business, politics, football, etc.)
+        const hasBusiness = parsed.some(c => c.slug === 'business');
+        const hasFootball = parsed.some(c => c.slug === 'football');
+        const hasInternational = parsed.some(c => c.slug === 'international');
+        if (hasBusiness && hasFootball && hasInternational) {
           return parsed;
         }
       }
@@ -280,20 +250,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [appearanceSettings, setAppearanceSettings] = useState<WebsiteAppearanceSettings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.APPEARANCE);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          ...INITIAL_APPEARANCE_SETTINGS,
-          ...parsed,
-          contactPhone: parsed.contactPhone && parsed.contactPhone !== '+255 22 211 4500' ? parsed.contactPhone : '+255 622 754 599',
-          socialLinks: {
-            ...INITIAL_APPEARANCE_SETTINGS.socialLinks,
-            ...(parsed.socialLinks || {}),
-            whatsapp: 'https://wa.me/255622754599',
-          },
-        };
-      }
-      return INITIAL_APPEARANCE_SETTINGS;
+      return stored ? JSON.parse(stored) : INITIAL_APPEARANCE_SETTINGS;
     } catch {
       return INITIAL_APPEARANCE_SETTINGS;
     }
@@ -449,15 +406,48 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // LocalStorage synchronizations
-  useEffect(() => {
+  const refreshNewsWire = async () => {
+    setNewsLoading(true);
+    setNewsError(null);
     try {
-      localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify(articles));
-    } catch (e) {
-      console.warn('Storage write failed', e);
-    }
-  }, [articles]);
+      // Drop any leftover demo articles from older builds
+      try {
+        localStorage.removeItem('the_source_articles_v4_bilingual');
+        localStorage.removeItem(STORAGE_KEYS.ARTICLES);
+      } catch {}
 
+      const res = await fetch('/api/news');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to load live news wire');
+      }
+      const nextArticles: Article[] = Array.isArray(data.articles) ? data.articles : [];
+      setArticles(nextArticles);
+
+      const ticker = nextArticles
+        .slice(0, 5)
+        .map(a => a.title)
+        .join(' /// ');
+      if (ticker) {
+        setAppearanceSettings(prev => ({
+          ...prev,
+          breakingNewsTicker: ticker,
+          featuredStoryId: nextArticles[0]?.id || '',
+        }));
+      }
+    } catch (error) {
+      setNewsError(error instanceof Error ? error.message : 'Failed to load live news wire');
+      setArticles([]);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshNewsWire();
+  }, []);
+
+  // LocalStorage synchronizations (wire articles are not persisted — always fresh from API)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
@@ -625,27 +615,9 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Article CRUD & Controls
   const addArticle = (data: Omit<Article, 'id' | 'viewsCount' | 'reactions' | 'comments'>): Article => {
-    const adminAuthor = currentAdminUser
-      ? {
-          id: currentAdminUser.id,
-          name: currentAdminUser.name,
-          email: currentAdminUser.email || '',
-          role: currentAdminUser.role || 'admin',
-        }
-      : {
-          id: 'usr_telvin',
-          name: 'Telvin Aggrey (Super Admin)',
-          email: 'telvinaggrey24@gmail.com',
-          role: 'admin',
-        };
-
     const newArticle: Article = {
       ...data,
-      id: `art_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      publishedAt: data.publishedAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: data.createdBy || adminAuthor,
-      lastEditedBy: adminAuthor,
+      id: `art_${Date.now()}`,
       viewsCount: 1,
       reactions: {
         insightful: 0,
@@ -657,41 +629,22 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       commentsEnabled: data.commentsEnabled !== false,
     };
     setArticles(prev => [newArticle, ...prev]);
-    logAdminActivity(
-      'Created Article',
-      newArticle.title,
-      'article',
-      `Category: ${newArticle.categoryName}, Author: ${newArticle.author?.name || 'Staff'}, Status: ${newArticle.status}`
-    );
+    logAdminActivity('Created Article', newArticle.title, 'article', `Category: ${newArticle.categoryName}, Status: ${newArticle.status}`);
     return newArticle;
   };
 
   const updateArticle = (id: string, updates: Partial<Article>) => {
-    const adminAuthor = currentAdminUser
-      ? {
-          id: currentAdminUser.id,
-          name: currentAdminUser.name,
-          email: currentAdminUser.email || '',
-          role: currentAdminUser.role || 'admin',
-        }
-      : undefined;
-
     setArticles(prev =>
       prev.map(art => {
         if (art.id === id) {
-          const updated: Article = {
-            ...art,
-            ...updates,
-            updatedAt: new Date().toISOString(),
-            lastEditedBy: adminAuthor || art.lastEditedBy,
-          };
+          const updated = { ...art, ...updates, updatedAt: new Date().toISOString() };
           return updated;
         }
         return art;
       })
     );
     const target = articles.find(a => a.id === id)?.title || id;
-    logAdminActivity('Updated Article', target, 'article', `Modified by ${adminAuthor?.name || 'Administrator'}`);
+    logAdminActivity('Updated Article', target, 'article', `Modified fields: ${Object.keys(updates).join(', ')}`);
   };
 
   const deleteArticle = (id: string) => {
@@ -857,64 +810,6 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // User Management & RBAC
-  const createStaffUser = (data: {
-    name: string;
-    email: string;
-    phone?: string;
-    role: UserRole;
-    staffTitle?: string;
-    avatar?: string;
-  }): UserProfile => {
-    const newUser: UserProfile = {
-      id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      role: data.role,
-      staffTitle: data.staffTitle,
-      avatar:
-        data.avatar ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
-      status: 'active',
-      isSubscriber: true,
-      isDonor: false,
-      registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-    };
-
-    setRegisteredUsers(prev => [newUser, ...prev]);
-
-    // If staff/editor/admin/journalist, also register as newsroom author so they can publish under their byline
-    if (data.role !== 'reader') {
-      const existingAuthor = authors.find(
-        a =>
-          a.name.toLowerCase() === data.name.toLowerCase() ||
-          (data.email && a.email?.toLowerCase() === data.email.toLowerCase())
-      );
-      if (!existingAuthor) {
-        const newAuthor: Author = {
-          id: `author-${Date.now()}`,
-          name: data.name,
-          title: data.staffTitle || (data.role === 'admin' ? 'Chief Editor & Administrator' : 'Staff Journalist'),
-          avatar: newUser.avatar!,
-          bio: `${data.name} is a staff journalist and editor at THE SOURCE newsroom covering East Africa.`,
-          email: data.email,
-          joinedYear: String(new Date().getFullYear()),
-          specialties: ['National News', 'Public Interest'],
-        };
-        setAuthors(prev => [...prev, newAuthor]);
-      }
-    }
-
-    logAdminActivity(
-      `Added Staff Member (${data.role})`,
-      data.name,
-      'user',
-      `Email: ${data.email}, Title: ${data.staffTitle || data.role}`
-    );
-    return newUser;
-  };
-
   const updateUserRole = (userId: string, newRole: UserRole) => {
     setRegisteredUsers(prev =>
       prev.map(u => {
@@ -1134,18 +1029,11 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Reader Phone / Email Login
-  const loginWithPhone = (
-    phone: string,
-    name?: string,
-    additionalDetails?: { email?: string; location?: string; country?: string }
-  ): UserProfile => {
+  const loginWithPhone = (phone: string, name?: string): UserProfile => {
     const profile: UserProfile = {
       id: `usr_${Date.now()}`,
       name: name?.trim() || `Reader (${phone.replace(/\s+/g, '').slice(-4)})`,
       phone: phone.trim(),
-      email: additionalDetails?.email?.trim().toLowerCase() || undefined,
-      location: additionalDetails?.location?.trim() || undefined,
-      country: additionalDetails?.country?.trim() || undefined,
       role: 'reader',
       status: 'active',
       isSubscriber: true,
@@ -1159,18 +1047,11 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return profile;
   };
 
-  const loginWithEmail = (
-    email: string,
-    name?: string,
-    additionalDetails?: { phone?: string; location?: string; country?: string }
-  ): UserProfile => {
+  const loginWithEmail = (email: string, name?: string): UserProfile => {
     const profile: UserProfile = {
       id: `usr_${Date.now()}`,
       name: name?.trim() || email.split('@')[0],
       email: email.trim().toLowerCase(),
-      phone: additionalDetails?.phone?.trim() || undefined,
-      location: additionalDetails?.location?.trim() || undefined,
-      country: additionalDetails?.country?.trim() || undefined,
       role: 'reader',
       status: 'active',
       isSubscriber: true,
@@ -1273,7 +1154,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // System Resets & Exports
   const resetToDefaults = () => {
-    setArticles(INITIAL_ARTICLES);
+    void refreshNewsWire();
     setCategories(INITIAL_CATEGORIES);
     setSubscribers(INITIAL_SUBSCRIBERS);
     setAds(INITIAL_ADS);
@@ -1373,7 +1254,6 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteMediaItem,
         updateMediaItem,
         registeredUsers,
-        createStaffUser,
         updateUserRole,
         toggleUserStatus,
         deleteUser,
@@ -1423,6 +1303,9 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetToDefaults,
         exportSubscribersCSV,
         exportArticlesJson,
+        newsLoading,
+        newsError,
+        refreshNewsWire,
       }}
     >
       {children}

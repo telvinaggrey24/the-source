@@ -1,22 +1,18 @@
 # THE SOURCE
 
-Premier East African news publication: verified journalism across politics, business, sports, culture, and technology.
+Live Tanzania & East Africa headlines via Google News wire. Stories link out to original publishers for the full report.
 
 ## Run locally
 
 **Prerequisites:** Node.js
 
-1. Install dependencies:
-   `npm install`
-2. Copy [`.env.example`](.env.example) to `.env.local` and set `VITE_APP_URL` if you have a public URL
-3. Run the app:
-   `npm run dev`
+1. `npm install`
+2. Copy `.env.example` to `.env.local` and set `VITE_APP_URL` if needed
+3. `npm run dev` → [http://localhost:3000](http://localhost:3000)
 
-The site runs at [http://localhost:3000](http://localhost:3000).
+Live wire endpoint (dev + Vercel): `GET /api/news`
 
 ## Deploy on Vercel
-
-The project is already set up for Vercel (`vercel.json`). In the Vercel dashboard, add this environment variable for Production, Preview, and Development:
 
 | Name | Production / Preview | Development |
 | --- | --- | --- |

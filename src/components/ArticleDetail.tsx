@@ -468,6 +468,23 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         {/* Main Editorial Prose */}
         <div className="lg:col-span-8 max-w-prose">
+          {article.isWireStory && article.sourceUrl && (
+            <div className="no-print mb-6 p-4 bg-red-50 border border-red-200 rounded-xs">
+              <p className="text-xs font-sans text-stone-700 mb-3">
+                This is a live wire headline. Full reporting stays on the original publisher.
+              </p>
+              <a
+                href={article.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded-xs transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Read full story on {article.author?.name || 'publisher'}
+              </a>
+            </div>
+          )}
+
           {/* Bilingual Reading Mode Selector */}
           <div className="no-print mb-6 p-2.5 bg-stone-100 border border-stone-200 rounded-xs flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 font-sans font-semibold text-stone-700">

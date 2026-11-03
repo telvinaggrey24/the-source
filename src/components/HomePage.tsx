@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNews } from '../context/NewsContext';
 import { HeroGrid } from './HeroGrid';
 import { ArticleCard } from './ArticleCard';
@@ -19,78 +19,151 @@ import {
   User,
   ShieldCheck,
   ChevronRight,
-  Layers,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const { articles, activeCategories, authors, setView, language, appearanceSettings } = useNews();
-  const publishedArticles = useMemo(() => articles.filter(a => a.status === 'published'), [articles]);
+  const { articles, authors, setView, language, newsLoading, newsError, refreshNewsWire } = useNews();
+  const publishedArticles = articles.filter(a => a.status === 'published');
 
-  // Dynamic homepage category sorting (honors custom admin category order)
-  const dynamicCategories = useMemo(() => {
-    const customOrder = appearanceSettings?.homepageCategoryOrder || [];
-    if (customOrder.length > 0) {
-      return [...activeCategories].sort((a, b) => {
-        const idxA = customOrder.indexOf(a.slug);
-        const idxB = customOrder.indexOf(b.slug);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-        return 0;
-      });
-    }
-    return activeCategories;
-  }, [activeCategories, appearanceSettings?.homepageCategoryOrder]);
+  const sportsArticles = publishedArticles.filter(a => a.categoryId === 'cat_sports');
+  const bongoArticles = publishedArticles.filter(a => a.categoryId === 'cat_entertainment');
+  const techArticles = publishedArticles.filter(a => a.categoryId === 'cat_technology');
+  const politicsArticles = publishedArticles.filter(a => a.categoryId === 'cat_politics');
+
+  if (newsLoading && publishedArticles.length === 0) {
+    return (
+      <div className="w-full min-h-[50vh] flex items-center justify-center px-6 py-20 font-sans">
+        <div className="text-center max-w-md">
+          <div className="mx-auto mb-4 h-8 w-8 border-2 border-red-700 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-stone-800 uppercase tracking-wider">
+            {language === 'sw' ? 'Inapakia habari hai…' : 'Loading live wire…'}
+          </p>
+          <p className="text-xs text-stone-500 mt-2">
+            Google News · Tanzania & East Africa
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (newsError && publishedArticles.length === 0) {
+    return (
+      <div className="w-full min-h-[40vh] flex items-center justify-center px-6 py-16 font-sans">
+        <div className="text-center max-w-md space-y-4">
+          <p className="text-sm font-bold text-red-700">{newsError}</p>
+          <button
+            onClick={() => void refreshNewsWire()}
+            className="px-5 py-2.5 bg-red-700 text-white text-xs font-bold uppercase tracking-wider rounded-xs hover:bg-red-800 cursor-pointer"
+          >
+            Retry wire
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full font-sans">
       {/* 1. Header Leaderboard Ad */}
       <AdBanner slot="header_leaderboard" />
 
-      {/* 1b. Real-Time Markets & Economy Pulse Bar */}
+      {/* 1b. Live wire status */}
       <div className="bg-stone-900 text-stone-200 text-xs py-2 px-4 sm:px-6 border-y border-stone-800 font-mono overflow-x-auto no-scrollbar">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6 whitespace-nowrap">
           <div className="flex items-center gap-1.5 text-red-400 font-bold tracking-wider shrink-0">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span className="uppercase text-[11px]">Markets Pulse:</span>
+            <span className="uppercase text-[11px]">Live wire:</span>
           </div>
 
           <div className="flex items-center gap-6 text-[11px] text-stone-300">
             <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">DSE All Share:</span>
-              <span className="tabular-nums font-bold text-emerald-400">2,184.20 (+0.84%)</span>
+              <span className="text-stone-400 font-sans font-medium">Headlines:</span>
+              <span className="tabular-nums font-bold text-white">{publishedArticles.length}</span>
             </span>
             <span aria-hidden="true" className="text-stone-700">|</span>
             <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">USD / TZS:</span>
-              <span className="tabular-nums font-bold text-white">2,642.50</span>
+              <span className="text-stone-400 font-sans font-medium">Source:</span>
+              <span className="font-bold text-emerald-400">Google News</span>
             </span>
             <span aria-hidden="true" className="text-stone-700">|</span>
             <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">EUR / TZS:</span>
-              <span className="tabular-nums font-bold text-white">2,884.10</span>
+              <span className="text-stone-400 font-sans font-medium">Focus:</span>
+              <span className="font-bold text-white">Tanzania · East Africa</span>
             </span>
             <span aria-hidden="true" className="text-stone-700">|</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">Brent Crude:</span>
-              <span className="tabular-nums font-bold text-stone-200">$76.40/bbl</span>
-            </span>
-            <span aria-hidden="true" className="text-stone-700">|</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">Gold (Ounce):</span>
-              <span className="tabular-nums font-bold text-amber-300">$2,748.10 (+1.2%)</span>
-            </span>
-            <span aria-hidden="true" className="text-stone-700">|</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-stone-400 font-sans font-medium">Arabica Coffee:</span>
-              <span className="tabular-nums font-bold text-emerald-400">$3.82/kg (+2.1%)</span>
-            </span>
+            <button
+              type="button"
+              onClick={() => void refreshNewsWire()}
+              className="font-bold text-red-400 hover:text-red-300 uppercase tracking-wider cursor-pointer"
+            >
+              Refresh
+            </button>
           </div>
         </div>
       </div>
 
       {/* 2. BBC Hero Grid (Top Lead Story + Secondary + Most Read) */}
       <HeroGrid />
+
+      {/* 2b. Newsroom Voices & Bureau Columnists Rail */}
+      <section className="bg-stone-50 py-6 border-b border-stone-200" aria-label="Journalists and Columnists">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between pb-2 mb-4 border-b border-stone-200">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-5 bg-[#BB1919] inline-block" />
+              <h2 className="font-sans font-black text-lg text-stone-950 uppercase tracking-tight">
+                {language === 'sw' ? 'Sauti za Waandishi Wetu' : 'Newsroom Voices & Columnists'}
+              </h2>
+              <span className="hidden sm:inline text-xs text-stone-500 font-medium font-sans">
+                · Informed perspectives across Tanzania & the region
+              </span>
+            </div>
+            <button
+              onClick={() => setView({ type: 'authors-directory' })}
+              className="text-xs font-bold text-[#BB1919] hover:underline uppercase flex items-center gap-1 cursor-pointer"
+            >
+              <span>{language === 'sw' ? 'Waandishi Wote' : 'All 6 Staff'}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {authors.map(author => (
+              <div
+                key={author.id}
+                onClick={() => setView({ type: 'author', authorId: author.id })}
+                className="bg-white border border-stone-200 hover:border-[#BB1919] p-3.5 rounded-xs transition-all hover:shadow-2xs cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative mb-2.5 mx-auto w-16 h-16">
+                    <img
+                      src={author.avatar}
+                      alt={author.name}
+                      referrerPolicy="no-referrer"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-stone-200 group-hover:border-[#BB1919] transition-colors"
+                    />
+                    <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-0.5 rounded-full shadow-2xs">
+                      <ShieldCheck className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <h4 className="font-sans font-bold text-xs text-stone-900 group-hover:text-[#BB1919] transition-colors text-center line-clamp-1">
+                    {author.name}
+                  </h4>
+                  <p className="text-[10px] text-stone-500 font-sans text-center line-clamp-1 mt-0.5">
+                    {author.title.split(' ')[0]} {author.title.split(' ')[1] || ''}
+                  </p>
+                </div>
+                <div className="pt-2 mt-2 border-t border-stone-100 text-center">
+                  <span className="text-[10px] font-bold text-[#BB1919] uppercase tracking-wider inline-flex items-center gap-0.5 group-hover:underline">
+                    <span>View Stories</span>
+                    &rarr;
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 3. THE SOURCE VERIFY SPOTLIGHT BANNER */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -209,28 +282,78 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* Main 8-column Editorial Feed */}
           <main className="lg:col-span-8 space-y-8">
-            {/* Dynamic Editorial Category Sections (Controlled by Admin CMS) */}
-            {dynamicCategories.map((cat, idx) => {
-              const catArticles = publishedArticles.filter(
-                a =>
-                  a.categoryId === cat.id ||
-                  a.categoryId === `cat_${cat.slug}` ||
-                  a.categoryId === cat.slug ||
-                  a.categoryName.toLowerCase() === cat.name.toLowerCase() ||
-                  a.categoryId.includes(cat.slug)
-              );
-              if (catArticles.length === 0) return null;
+            {/* Business Section */}
+            <CategorySection
+              categorySlug="business"
+              title={language === 'sw' ? 'Biashara na Uchumi' : 'Business & Markets'}
+              layout="featured-left"
+            />
 
-              const layout = idx % 2 === 0 ? 'featured-left' : 'grid';
-              return (
-                <CategorySection
-                  key={cat.id}
-                  categorySlug={cat.slug}
-                  title={language === 'sw' && cat.nameSwahili ? cat.nameSwahili : cat.name}
-                  layout={layout}
-                />
-              );
-            })}
+            {/* Politics Section */}
+            <CategorySection
+              categorySlug="politics"
+              title={language === 'sw' ? 'Siasa za Bunge & Serikali' : 'Politics & Governance'}
+              layout="grid"
+            />
+
+            {/* International Section */}
+            <CategorySection
+              categorySlug="international"
+              title={language === 'sw' ? 'Habari za Kimataifa' : 'International News'}
+              layout="grid"
+            />
+
+            {/* Dual Column: Football & Sports */}
+            <section className="py-6 border-b border-stone-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <div className="flex items-center justify-between pb-2 mb-4 border-b-2 border-stone-900">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-5 bg-[#BB1919]" />
+                      <h3 className="font-sans font-black text-lg text-stone-950 uppercase">
+                        {language === 'sw' ? 'Soka' : 'Football'}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setView({ type: 'category', categorySlug: 'football' })}
+                      className="text-xs font-bold text-[#BB1919] hover:underline uppercase"
+                    >
+                      More &rarr;
+                    </button>
+                  </div>
+                  {publishedArticles.find(a => a.categoryId === 'cat_football' || a.categoryId === 'cat_sports') && (
+                    <ArticleCard article={publishedArticles.find(a => a.categoryId === 'cat_football' || a.categoryId === 'cat_sports')!} variant="standard" />
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between pb-2 mb-4 border-b-2 border-stone-900">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-5 bg-[#BB1919]" />
+                      <h3 className="font-sans font-black text-lg text-stone-950 uppercase">
+                        {language === 'sw' ? 'Burudani' : 'Entertainment'}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setView({ type: 'category', categorySlug: 'entertainment' })}
+                      className="text-xs font-bold text-[#BB1919] hover:underline uppercase"
+                    >
+                      More &rarr;
+                    </button>
+                  </div>
+                  {publishedArticles.find(a => a.categoryId === 'cat_entertainment' || a.categoryId === 'cat_music') && (
+                    <ArticleCard article={publishedArticles.find(a => a.categoryId === 'cat_entertainment' || a.categoryId === 'cat_music')!} variant="standard" />
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Technology & Education */}
+            <CategorySection
+              categorySlug="technology"
+              title={language === 'sw' ? 'Sayansi na Teknolojia' : 'Technology & Innovation'}
+              layout="grid"
+            />
 
             {/* BBC Radio / Podcast Bulletin Banner */}
             <div className="bg-[#121212] text-white p-6 rounded-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -308,63 +431,6 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* 5b. Newsroom Voices & Bureau Columnists Rail (Compact Downside) */}
-      <section className="bg-stone-100/80 py-4 sm:py-5 border-y border-stone-200 mt-6" aria-label="Journalists and Columnists">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between pb-2 mb-3 border-b border-stone-200/80">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-4 bg-[#BB1919] inline-block rounded-2xs" />
-              <h2 className="font-sans font-bold text-sm sm:text-base text-stone-900 uppercase tracking-tight">
-                {language === 'sw' ? 'Sauti za Waandishi Wetu' : 'Newsroom Voices & Columnists'}
-              </h2>
-              <span className="hidden sm:inline text-[11px] text-stone-500 font-sans">
-                · Perspectives across Tanzania & the region
-              </span>
-            </div>
-            <button
-              onClick={() => setView({ type: 'authors-directory' })}
-              className="text-[11px] font-bold text-[#BB1919] hover:underline uppercase flex items-center gap-1 cursor-pointer"
-            >
-              <span>{language === 'sw' ? 'Waandishi Wote' : 'All Staff'}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
-            {authors.map(author => (
-              <div
-                key={author.id}
-                onClick={() => setView({ type: 'author', authorId: author.id })}
-                className="bg-white border border-stone-200 hover:border-[#BB1919] p-2.5 rounded-xs transition-all hover:shadow-2xs cursor-pointer group flex items-center sm:flex-col sm:text-center gap-2.5"
-              >
-                <div className="relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 mx-auto">
-                  <img
-                    src={author.avatar}
-                    alt={author.name}
-                    referrerPolicy="no-referrer"
-                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border border-stone-300 group-hover:border-[#BB1919] transition-colors"
-                  />
-                  <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-0.5 rounded-full shadow-2xs">
-                    <ShieldCheck className="w-2.5 h-2.5" />
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-sans font-bold text-[11px] sm:text-xs text-stone-900 group-hover:text-[#BB1919] transition-colors truncate">
-                    {author.name}
-                  </h4>
-                  <p className="text-[10px] text-stone-500 font-sans truncate">
-                    {author.title.split(' ')[0]} {author.title.split(' ')[1] || ''}
-                  </p>
-                  <span className="text-[10px] font-bold text-[#BB1919] uppercase tracking-wider inline-flex items-center gap-0.5 mt-0.5 sm:hidden">
-                    Stories &rarr;
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* 6. Newsletter Subscription */}
       <NewsletterSection />
