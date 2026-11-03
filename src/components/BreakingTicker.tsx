@@ -25,17 +25,16 @@ export const BreakingTicker: React.FC = () => {
 
   return (
     <div
-      className="bg-[#121212] text-white border-b border-stone-800 overflow-hidden relative"
+      className="bg-[#F6F6F6] text-[#121212] border-b border-[#E6E6E6] overflow-hidden relative"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       role="region"
       aria-label="Breaking News Alert"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4 font-sans relative">
-        {/* Fixed BBC-style Breaking badge on the left */}
-        <div className="flex items-center gap-2 shrink-0 bg-[#BB1919] text-white text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-2xs z-10 shadow-md">
-          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          <span>{language === 'sw' ? 'Moja kwa Moja' : 'Breaking News'}</span>
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-1.5 flex items-center justify-between gap-3 font-sans relative">
+        <div className="flex items-center gap-2 shrink-0 bg-[#BB1919] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 z-10">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          <span>{language === 'sw' ? 'Moja kwa Moja' : 'Live'}</span>
         </div>
 
         {/* Continuous ticker track sliding from right to left */}
@@ -49,14 +48,14 @@ export const BreakingTicker: React.FC = () => {
               <button
                 key={`${item.id}-${idx}`}
                 onClick={() => openArticle(item)}
-                className="inline-flex items-center gap-2 text-xs sm:text-sm text-stone-200 hover:text-red-400 hover:underline transition-colors cursor-pointer whitespace-nowrap shrink-0 group"
+                className="inline-flex items-center gap-2 text-xs text-[#3A3A3A] hover:text-[#BB1919] transition-colors cursor-pointer whitespace-nowrap shrink-0 group"
               >
-                <span className="text-[#BB1919] font-black group-hover:text-red-300">
-                  [{item.categoryName.toUpperCase()}]
+                <span className="text-[#BB1919] font-bold">
+                  {item.categoryName}
                 </span>
-                <span className="font-bold text-white group-hover:text-red-200">{item.title}</span>
-                <span className="text-stone-600 mx-2" aria-hidden="true">
-                  ///
+                <span className="font-semibold text-[#121212] group-hover:underline">{item.title}</span>
+                <span className="text-[#C8C8C8] mx-1" aria-hidden="true">
+                  ·
                 </span>
               </button>
             ))}
@@ -64,19 +63,15 @@ export const BreakingTicker: React.FC = () => {
         </div>
 
         {/* Pause/Play indicator */}
-        <div className="hidden sm:flex items-center gap-2 text-stone-400 text-xs shrink-0 z-10 pl-2 border-l border-stone-800">
-          <button
-            onClick={() => setIsPaused(!isPaused)}
-            className="p-1 hover:text-white transition-colors cursor-pointer"
-            title={isPaused ? 'Resume sliding' : 'Pause ticker'}
-            aria-label={isPaused ? 'Resume ticker' : 'Pause ticker'}
-          >
-            {isPaused ? <Play className="w-3.5 h-3.5 fill-white text-white" /> : <Pause className="w-3.5 h-3.5" />}
-          </button>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500">
-            {isPaused ? 'Paused' : 'LIVE TICKER'}
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsPaused(!isPaused)}
+          className="hidden sm:flex p-1 text-[#6E6E6E] hover:text-[#121212] cursor-pointer shrink-0 border-l border-[#E6E6E6] pl-2"
+          title={isPaused ? 'Resume' : 'Pause'}
+          aria-label={isPaused ? 'Resume ticker' : 'Pause ticker'}
+        >
+          {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+        </button>
       </div>
     </div>
   );
