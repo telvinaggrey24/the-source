@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNews } from '../context/NewsContext';
-import { ChevronRight, ChevronLeft, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 
 export const BreakingTicker: React.FC = () => {
   const { articles, openArticle, language, appearanceSettings } = useNews();
