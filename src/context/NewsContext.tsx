@@ -44,6 +44,11 @@ import {
   INITIAL_APPEARANCE_SETTINGS,
   INITIAL_WEBSITE_SETTINGS,
 } from '../data/initialData';
+import {
+  detectLanguageFromCountry,
+  detectLanguageFromIp,
+  type SiteLanguage,
+} from '../utils/locale';
 
 interface NewsContextType {
   // Articles
@@ -157,8 +162,10 @@ interface NewsContextType {
   adminLogout: () => Promise<void>;
 
   // General System
-  language: 'en' | 'sw';
-  setLanguage: (lang: 'en' | 'sw') => void;
+  language: SiteLanguage;
+  setLanguage: (lang: SiteLanguage) => void;
+  /** True after the reader manually picks EN/SW (stops country auto-switch). */
+  languageManual: boolean;
   textSize: 'sm' | 'md' | 'lg' | 'xl';
   setTextSize: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
   resetToDefaults: () => void;
@@ -183,6 +190,7 @@ const STORAGE_KEYS = {
   AUTH: 'the_source_admin_auth_v2',
   ADMIN_USER: 'the_source_admin_user_v2',
   LANG: 'the_source_lang_v2',
+  LANG_MANUAL: 'the_source_lang_manual_v1',
   TEXT_SIZE: 'the_source_text_size_v2',
   USER: 'the_source_current_user_v2',
   DONATIONS: 'the_source_donations_v2',
@@ -419,14 +427,20 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Language state (default English as requested)
-  const [language, setLanguageState] = useState<'en' | 'sw'>(() => {
+  // Language: country default, unless reader already chose manually
+  const [languageManual, setLanguageManual] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.LANG_MANUAL) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [language, setLanguageState] = useState<SiteLanguage>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.LANG);
-      return stored === 'sw' ? 'sw' : 'en';
-    } catch {
-      return 'en';
-    }
+      if (stored === 'sw' || stored === 'en') return stored;
+    } catch {}
+    return detectLanguageFromCountry();
   });
 
   // Text size state
@@ -1456,12 +1470,37 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setView({ type: 'article', slug: art.slug });
   };
 
-  const setLanguage = (lang: 'en' | 'sw') => {
+  const setLanguage = (lang: SiteLanguage) => {
     setLanguageState(lang);
+    setLanguageManual(true);
     try {
       localStorage.setItem(STORAGE_KEYS.LANG, lang);
+      localStorage.setItem(STORAGE_KEYS.LANG_MANUAL, '1');
     } catch {}
   };
+
+  const languageManualRef = useRef(languageManual);
+  languageManualRef.current = languageManual;
+
+  // Auto language from country (timezone → optional IP) unless user overrode
+  useEffect(() => {
+    if (languageManualRef.current) return;
+    let cancelled = false;
+    const apply = (lang: SiteLanguage) => {
+      if (cancelled || languageManualRef.current) return;
+      setLanguageState(lang);
+      try {
+        localStorage.setItem(STORAGE_KEYS.LANG, lang);
+      } catch {}
+    };
+    apply(detectLanguageFromCountry());
+    void detectLanguageFromIp().then(ipLang => {
+      if (ipLang) apply(ipLang);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setTextSize = (size: 'sm' | 'md' | 'lg' | 'xl') => {
     setTextSizeState(size);
@@ -1620,6 +1659,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adminLogout,
         language,
         setLanguage,
+        languageManual,
         textSize,
         setTextSize,
         resetToDefaults,

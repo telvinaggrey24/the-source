@@ -27,6 +27,8 @@ export const Header: React.FC = () => {
     setIsAuthModalOpen,
     appearanceSettings,
     websiteSettings,
+    language,
+    setLanguage,
   } = useNews();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -136,6 +138,32 @@ export const Header: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div
+              className="flex items-center border border-[#E6E6E6] text-[10px] font-bold uppercase tracking-wider"
+              role="group"
+              aria-label="Language"
+              title="Auto from country — tap to override"
+            >
+              <button
+                type="button"
+                onClick={() => setLanguage('sw')}
+                className={`px-2 py-1 cursor-pointer ${
+                  language === 'sw' ? 'bg-[#121212] text-white' : 'text-[#5A5A5A] hover:text-[#121212]'
+                }`}
+              >
+                SW
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`px-2 py-1 cursor-pointer ${
+                  language === 'en' ? 'bg-[#121212] text-white' : 'text-[#5A5A5A] hover:text-[#121212]'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
@@ -268,6 +296,31 @@ export const Header: React.FC = () => {
             </nav>
 
             <div className="border-t border-[#E6E6E6] p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#6E6E6E]">
+                  Language
+                </span>
+                <div className="flex border border-[#E6E6E6] text-[11px] font-bold uppercase">
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('sw')}
+                    className={`px-3 py-1.5 cursor-pointer ${
+                      language === 'sw' ? 'bg-[#121212] text-white' : 'text-[#5A5A5A]'
+                    }`}
+                  >
+                    SW
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('en')}
+                    className={`px-3 py-1.5 cursor-pointer ${
+                      language === 'en' ? 'bg-[#121212] text-white' : 'text-[#5A5A5A]'
+                    }`}
+                  >
+                    EN
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <a
                   href="tel:+255622754599"

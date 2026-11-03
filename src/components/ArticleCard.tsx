@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Article } from '../types';
 import { useNews } from '../context/NewsContext';
+import { localizeArticle } from '../utils/articleLocale';
 import { Bookmark, Newspaper } from 'lucide-react';
 
 interface ArticleCardProps {
@@ -8,11 +9,6 @@ interface ArticleCardProps {
   variant?: 'featured' | 'standard' | 'horizontal' | 'compact' | 'ranking' | 'video';
   rank?: number;
   videoDuration?: string;
-}
-
-function hasDistinctEnglish(article: Article): boolean {
-  if (!article.titleEnglish) return false;
-  return article.titleEnglish.trim().toLowerCase() !== article.title.trim().toLowerCase();
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -23,7 +19,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   const { openArticle, isBookmarked, toggleBookmark, setView, language } = useNews();
   const [imgError, setImgError] = useState(false);
   const bookmarked = isBookmarked(article.id);
-  const showEn = !article.isWireStory && hasDistinctEnglish(article);
+  const copy = localizeArticle(article, language);
 
   const dateFormatted = new Intl.DateTimeFormat(language === 'sw' ? 'sw-TZ' : 'en-GB', {
     day: 'numeric',
@@ -47,7 +43,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       <div className={`overflow-hidden bg-[#F6F6F6] ${aspectClass} ${className} relative`}>
         <img
           src={article.featuredImage}
-          alt={article.title}
+          alt={copy.title}
           referrerPolicy="no-referrer"
           onError={() => setImgError(true)}
           className="w-full h-full object-cover"
@@ -78,13 +74,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {article.categoryName}
           </span>
           <h2 className="font-bbc-headline mt-1.5 text-[1.65rem] sm:text-[2.15rem] lg:text-[2.5rem] font-bold text-[#121212] leading-[1.15] group-hover:underline decoration-[#121212] underline-offset-2">
-            {article.title}
+            {copy.title}
           </h2>
-          {showEn && (
-            <p className="mt-1 text-sm text-[#5A5A5A] italic line-clamp-2">{article.titleEnglish}</p>
-          )}
           <p className="mt-2.5 text-[0.95rem] text-[#3A3A3A] leading-relaxed line-clamp-3 max-w-3xl">
-            {article.summary}
+            {copy.summary}
           </p>
           <div className="mt-3 flex items-center gap-2 text-[0.75rem] text-[#6E6E6E]">
             <span>{dateFormatted}</span>
@@ -115,7 +108,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bbc-headline text-[1rem] sm:text-[1.05rem] font-bold text-[#121212] leading-snug group-hover:underline">
-            {article.title}
+            {copy.title}
           </h3>
           <span className="mt-1 block text-[0.7rem] font-bold uppercase tracking-wide text-[#6E6E6E]">
             {article.categoryName}
@@ -137,7 +130,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {article.categoryName}
           </span>
           <h3 className="font-bbc-headline mt-1 text-[1.05rem] font-bold text-[#121212] leading-snug line-clamp-3 group-hover:underline">
-            {article.title}
+            {copy.title}
           </h3>
           <span className="mt-2 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
         </div>
@@ -155,14 +148,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           {article.categoryName}
         </span>
         <h3 className="font-bbc-headline mt-1 text-[1.05rem] font-bold text-[#121212] leading-snug line-clamp-3 group-hover:underline">
-          {article.title}
+          {copy.title}
         </h3>
         <span className="mt-1.5 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
       </article>
     );
   }
 
-  // standard / video
   return (
     <article onClick={handleCardClick} className="group cursor-pointer">
       {renderImage('aspect-[16/10] mb-2.5')}
@@ -170,13 +162,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         {article.categoryName}
       </span>
       <h3 className="font-bbc-headline mt-1 text-[1.15rem] sm:text-[1.25rem] font-bold text-[#121212] leading-snug line-clamp-3 group-hover:underline">
-        {article.title}
+        {copy.title}
       </h3>
-      {showEn && (
-        <p className="mt-1 text-xs text-[#5A5A5A] italic line-clamp-1">{article.titleEnglish}</p>
-      )}
       <p className="mt-1.5 text-[0.875rem] text-[#3A3A3A] leading-relaxed line-clamp-2">
-        {article.summary}
+        {copy.summary}
       </p>
       <span className="mt-2 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
     </article>

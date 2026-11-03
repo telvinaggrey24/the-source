@@ -25,6 +25,7 @@ import {
   Video,
 } from 'lucide-react';
 import { getCategoryTheme } from '../utils/categoryTheme';
+import { localizeArticle } from '../utils/articleLocale';
 
 interface ArticleDetailProps {
   slug: string;
@@ -44,9 +45,11 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
     textSize,
     setTextSize,
     language,
+    setLanguage,
   } = useNews();
 
   const article = articles.find(a => a.slug === slug);
+  const copy = article ? localizeArticle(article, language) : null;
 
   // Audio simulator state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -58,9 +61,6 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
   // Reading scroll progress bar state
   const [readingProgress, setReadingProgress] = useState(0);
-
-  // Dual-language viewing mode (default: both Swahili on top & English down below)
-  const [bilingualMode, setBilingualMode] = useState<'both' | 'swahili' | 'english'>('both');
 
   // Full body for syndicated wire items (fetched on open)
   const [wireBody, setWireBody] = useState<string[] | null>(null);
@@ -327,35 +327,25 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
           <span>{article.readTimeMinutes} min read</span>
         </div>
 
-        {/* Article Headline: Swahili on top */}
         <h1 className="font-sans font-black text-3xl sm:text-4xl lg:text-5xl text-stone-950 leading-tight mb-2 text-balance tracking-tight">
-          {article.title}
+          {copy?.title || article.title}
         </h1>
 
-        {/* English Headline: Down in English */}
-        {article.titleEnglish && (
-          <div className="mb-4 p-3 sm:p-4 bg-stone-50 border-l-4 border-[#BB1919] rounded-r-xs shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 block mb-1">
-              English Headline &bull; Tafsiri ya Kiingereza
-            </span>
-            <h2 className="font-serif italic text-lg sm:text-2xl text-stone-800 leading-snug">
-              {article.titleEnglish}
-            </h2>
-          </div>
+        {copy?.subtitle && (
+          <p className="font-editorial-body text-stone-700 text-lg sm:text-xl leading-relaxed mb-4 font-medium">
+            {copy.subtitle}
+          </p>
         )}
 
-        {/* Sub-headline / Deck: Swahili on top */}
-        <p className="font-editorial-body text-stone-700 text-lg sm:text-xl leading-relaxed mb-2 font-medium">
-          {article.subtitle}
-        </p>
-
-        {/* Sub-headline: English down below */}
-        {article.subtitleEnglish && (
-          <p className="font-serif text-stone-500 text-sm sm:text-base leading-relaxed mb-6 italic pl-3 border-l-2 border-stone-300">
-            <span className="not-italic font-sans font-bold text-[10px] uppercase tracking-wider text-stone-400 block mb-0.5">
-              English Summary:
-            </span>
-            {article.subtitleEnglish}
+        {copy?.hasTranslation && (
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">
+            {copy.isTranslation
+              ? language === 'sw'
+                ? 'Tafsiri ya Kiingereza'
+                : 'English translation'
+              : language === 'sw'
+                ? 'Asili — Kiswahili'
+                : 'Original — Kiswahili'}
           </p>
         )}
 
@@ -550,86 +540,52 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
             </div>
           )}
 
-          {/* Bilingual Reading Mode Selector — original CMS articles only */}
-          {!article.isWireStory && (
-          <div className="no-print mb-6 p-2.5 bg-stone-100 border border-stone-200 rounded-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 font-sans font-semibold text-stone-700">
-              <span className="w-2 h-2 rounded-full bg-[#BB1919]" />
-              <span>Mtindo wa Kusoma / Reading Format:</span>
+          {!article.isWireStory && copy?.hasTranslation && (
+            <div className="no-print mb-6 p-2.5 bg-stone-100 border border-stone-200 rounded-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 font-sans font-semibold text-stone-700">
+                <span className="w-2 h-2 rounded-full bg-[#BB1919]" />
+                <span>{language === 'sw' ? 'Lugha ya habari' : 'Story language'}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setLanguage('sw')}
+                  className={`px-2.5 py-1 rounded-2xs font-medium text-xs transition-colors cursor-pointer ${
+                    language === 'sw' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
+                  }`}
+                >
+                  {language === 'sw' ? 'Asili (SW)' : 'Original (SW)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage('en')}
+                  className={`px-2.5 py-1 rounded-2xs font-medium text-xs transition-colors cursor-pointer ${
+                    language === 'en' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
+                  }`}
+                >
+                  {language === 'sw' ? 'Tafsiri (EN)' : 'Translation (EN)'}
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setBilingualMode('both')}
-                className={`px-3 py-1 rounded-2xs font-bold text-xs transition-colors cursor-pointer ${
-                  bilingualMode === 'both' ? 'bg-[#BB1919] text-white shadow-2xs' : 'bg-white text-stone-700 hover:bg-stone-200'
-                }`}
-              >
-                Kiswahili (top) · English (below)
-              </button>
-              <button
-                onClick={() => setBilingualMode('swahili')}
-                className={`px-2.5 py-1 rounded-2xs font-medium text-xs transition-colors cursor-pointer ${
-                  bilingualMode === 'swahili' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
-                }`}
-              >
-                Kiswahili only
-              </button>
-              <button
-                onClick={() => setBilingualMode('english')}
-                className={`px-2.5 py-1 rounded-2xs font-medium text-xs transition-colors cursor-pointer ${
-                  bilingualMode === 'english' ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 hover:bg-stone-200'
-                }`}
-              >
-                English only
-              </button>
-            </div>
-          </div>
           )}
 
-          {/* Key Takeaways Callout Box */}
-          {article.keyTakeaways && article.keyTakeaways.length > 0 && (
+          {copy?.keyTakeaways && copy.keyTakeaways.length > 0 && (
             <div className="bg-stone-50 border border-stone-300 p-5 sm:p-6 mb-8 rounded-xs">
               <div className="flex items-center gap-2 text-red-700 font-editorial-heading font-bold text-base uppercase tracking-tight mb-3">
                 <Sparkles className="w-4 h-4" />
                 <span>
-                  {bilingualMode === 'english' ? 'Key Takeaways & Findings' : 'Mambo Muhimu Kufahamu (Key Takeaways)'}
+                  {language === 'en'
+                    ? 'Key Takeaways & Findings'
+                    : 'Mambo Muhimu Kufahamu (Key Takeaways)'}
                 </span>
               </div>
               <ul className="space-y-3 text-stone-700 font-sans text-sm">
-                {article.keyTakeaways.map((point, index) => {
-                  const pointEn = article.keyTakeawaysEnglish?.[index];
-
-                  if (bilingualMode === 'english' && pointEn) {
-                    return (
-                      <li key={index} className="flex items-start gap-2.5">
-                        <span className="font-mono text-red-700 font-bold text-xs mt-0.5">0{index + 1}.</span>
-                        <span className="leading-relaxed">{pointEn}</span>
-                      </li>
-                    );
-                  }
-
-                  if (bilingualMode === 'swahili' || !pointEn) {
-                    return (
-                      <li key={index} className="flex items-start gap-2.5">
-                        <span className="font-mono text-red-700 font-bold text-xs mt-0.5">0{index + 1}.</span>
-                        <span className="leading-relaxed">{point}</span>
-                      </li>
-                    );
-                  }
-
-                  // Both: Swahili on top, English below
-                  return (
-                    <li key={index} className="flex items-start gap-2.5">
-                      <span className="font-mono text-red-700 font-bold text-xs mt-0.5">0{index + 1}.</span>
-                      <div className="flex-1">
-                        <span className="leading-relaxed font-medium text-stone-900 block">{point}</span>
-                        <span className="text-xs text-stone-500 italic block mt-0.5 pl-2 border-l border-stone-300">
-                          {pointEn}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
+                {copy.keyTakeaways.map((point, index) => (
+                  <li key={index} className="flex items-start gap-2.5">
+                    <span className="font-mono text-red-700 font-bold text-xs mt-0.5">0{index + 1}.</span>
+                    <span className="leading-relaxed">{point}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           )}
@@ -670,91 +626,31 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
               </p>
             ))}
 
-            {!article.isWireStory && article.content.map((paragraph, index) => {
-              const paragraphEn = article.contentEnglish?.[index];
-
-              // Subheading
-              if (paragraph.startsWith('## ')) {
-                const headingSw = paragraph.replace('## ', '');
-                const headingEn = paragraphEn ? paragraphEn.replace('## ', '') : '';
-
-                if (bilingualMode === 'english' && headingEn) {
+            {!article.isWireStory &&
+              (copy?.content || article.content).map((paragraph, index) => {
+                if (paragraph.startsWith('## ')) {
                   return (
                     <h3
                       key={index}
                       className="font-editorial-heading font-bold text-2xl text-stone-950 pt-4 pb-1 border-b border-stone-200"
                     >
-                      {headingEn}
+                      {paragraph.replace('## ', '')}
                     </h3>
                   );
                 }
 
-                return (
-                  <div key={index} className="pt-4 pb-1 border-b border-stone-200 mb-2">
-                    <h3 className="font-editorial-heading font-bold text-2xl text-stone-950">
-                      {headingSw}
-                    </h3>
-                    {bilingualMode === 'both' && headingEn && (
-                      <h4 className="font-serif italic text-base text-stone-500 mt-1">
-                        {headingEn}
-                      </h4>
-                    )}
-                  </div>
-                );
-              }
-
-              // Blockquote
-              if (paragraph.startsWith('> ')) {
-                const quoteSw = paragraph.replace('> ', '');
-                const quoteEn = paragraphEn ? paragraphEn.replace('> ', '') : '';
-
-                if (bilingualMode === 'english' && quoteEn) {
+                if (paragraph.startsWith('> ')) {
                   return (
                     <blockquote
                       key={index}
-                      className="py-4 my-6 border-y border-stone-300 text-stone-800 italic font-editorial-body text-xl lg:text-2xl font-medium leading-relaxed px-4"
+                      className="py-4 my-6 border-l-4 border-[#BB1919] bg-stone-50 text-stone-900 italic font-editorial-body text-lg lg:text-xl font-medium leading-relaxed px-4"
                     >
-                      {quoteEn}
+                      {paragraph.replace('> ', '')}
                     </blockquote>
                   );
                 }
 
                 return (
-                  <div key={index} className="my-6">
-                    <blockquote className="py-4 border-l-4 border-[#BB1919] bg-stone-50 text-stone-900 italic font-editorial-body text-lg lg:text-xl font-medium leading-relaxed px-4">
-                      {quoteSw}
-                    </blockquote>
-                    {bilingualMode === 'both' && quoteEn && (
-                      <div className="pl-6 pt-2 text-stone-500 font-serif italic text-sm leading-relaxed border-l-2 border-stone-300 ml-2">
-                        <span className="font-sans not-italic text-[10px] font-bold uppercase text-stone-400 block mb-0.5">
-                          English Quote:
-                        </span>
-                        {quoteEn}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              // English Only Mode
-              if (bilingualMode === 'english' && paragraphEn) {
-                return (
-                  <p
-                    key={index}
-                    className={
-                      index === 0
-                        ? 'first-letter:text-5xl first-letter:font-editorial-heading first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:text-stone-950 leading-relaxed'
-                        : 'leading-relaxed'
-                    }
-                  >
-                    {paragraphEn}
-                  </p>
-                );
-              }
-
-              // Swahili Only Mode
-              if (bilingualMode === 'swahili') {
-                return (
                   <p
                     key={index}
                     className={
@@ -766,31 +662,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                     {paragraph}
                   </p>
                 );
-              }
-
-              // Both: Swahili on top, English down below!
-              return (
-                <div key={index} className="space-y-2">
-                  <p
-                    className={
-                      index === 0
-                        ? 'first-letter:text-5xl first-letter:font-editorial-heading first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:text-stone-950 leading-relaxed text-stone-900'
-                        : 'leading-relaxed text-stone-900'
-                    }
-                  >
-                    {paragraph}
-                  </p>
-                  {paragraphEn && (
-                    <div className="pl-3 sm:pl-4 border-l-2 border-stone-300 bg-stone-50/70 p-3 rounded-r-xs text-stone-600 font-serif italic text-sm sm:text-base leading-relaxed">
-                      <span className="font-sans not-italic text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
-                        English Translation &bull; Kiingereza:
-                      </span>
-                      {paragraphEn}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+              })}
           </div>
 
           {/* In-Article Ad Banner */}
