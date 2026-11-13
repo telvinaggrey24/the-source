@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNews } from '../context/NewsContext';
+import { AppLink } from './common/AppLink';
 import { getCategoryTheme } from '../utils/categoryTheme';
+import type { ViewState } from '../types';
 import {
   Search,
   Bookmark,
@@ -52,10 +54,8 @@ export const Header: React.FC = () => {
     })),
   ];
 
-  const goNav = (item: (typeof visibleNavItems)[number]) => {
-    if (item.isHome) setView({ type: 'home' });
-    else setView({ type: 'category', categorySlug: item.slug });
-  };
+  const navView = (item: (typeof visibleNavItems)[number]): ViewState =>
+    item.isHome ? { type: 'home' } : { type: 'category', categorySlug: item.slug };
 
   return (
     <header
@@ -84,9 +84,8 @@ export const Header: React.FC = () => {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between gap-4 h-14 sm:h-16">
           <div className="flex items-center gap-4 min-w-0">
-            <button
-              type="button"
-              onClick={() => setView({ type: 'home' })}
+            <AppLink
+              view={{ type: 'home' }}
               className="flex items-center gap-3 cursor-pointer focus:outline-none shrink-0 group"
               aria-label={`${appearanceSettings?.siteName || 'THE SOURCE'} Home`}
             >
@@ -98,7 +97,7 @@ export const Header: React.FC = () => {
               <span className="hidden lg:block font-bbc-headline text-[1.15rem] font-bold tracking-tight text-[#121212] leading-none">
                 {appearanceSettings?.siteName || 'THE SOURCE'}
               </span>
-            </button>
+            </AppLink>
 
             <span className="hidden xl:inline text-[11px] text-[#6E6E6E] border-l border-[#E6E6E6] pl-4 font-medium">
               {todayFormatted}
@@ -113,10 +112,9 @@ export const Header: React.FC = () => {
               const isSelected = item.isHome ? view.type === 'home' : isCurrentCategory(item.slug);
               const theme = getCategoryTheme(item.slug);
               return (
-                <button
+                <AppLink
                   key={item.slug}
-                  type="button"
-                  onClick={() => goNav(item)}
+                  view={navView(item)}
                   className={`px-2.5 lg:px-3 py-1.5 text-[11px] lg:text-xs font-bold uppercase tracking-wide whitespace-nowrap cursor-pointer transition-colors border-b-2 ${
                     isSelected
                       ? 'text-[#121212] border-[#BB1919]'
@@ -125,7 +123,7 @@ export const Header: React.FC = () => {
                   style={isSelected ? { color: theme.color === '#121212' ? '#BB1919' : theme.color } : undefined}
                 >
                   {item.label}
-                </button>
+                </AppLink>
               );
             })}
           </nav>
@@ -200,9 +198,8 @@ export const Header: React.FC = () => {
               Newsletter
             </button>
 
-            <button
-              type="button"
-              onClick={() => setView({ type: 'admin' })}
+            <AppLink
+              view={{ type: 'admin' }}
               className={`hidden sm:flex items-center gap-1 px-2 py-1.5 text-[11px] font-bold cursor-pointer ${
                 view.type === 'admin' ? 'text-[#BB1919]' : 'text-[#8A8A8A] hover:text-[#BB1919]'
               }`}
@@ -210,7 +207,7 @@ export const Header: React.FC = () => {
             >
               <Shield className="w-3.5 h-3.5" />
               <span>{isAdminAuthenticated ? 'CMS' : 'Staff'}</span>
-            </button>
+            </AppLink>
 
             <button
               type="button"
@@ -247,44 +244,35 @@ export const Header: React.FC = () => {
               {visibleNavItems.map(item => {
                 const isSelected = item.isHome ? view.type === 'home' : isCurrentCategory(item.slug);
                 return (
-                  <button
+                  <AppLink
                     key={item.slug}
-                    type="button"
-                    onClick={() => {
-                      goNav(item);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2.5 text-sm font-bold uppercase tracking-wide cursor-pointer ${
+                    view={navView(item)}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block w-full text-left px-3 py-2.5 text-sm font-bold uppercase tracking-wide cursor-pointer ${
                       isSelected ? 'text-[#BB1919] bg-[#F6F6F6]' : 'text-[#121212] hover:bg-[#F6F6F6]'
                     }`}
                   >
                     {item.label}
-                  </button>
+                  </AppLink>
                 );
               })}
 
               <div className="border-t border-[#E6E6E6] mt-2 pt-2 space-y-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setView({ type: 'authors-directory' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-[#3A3A3A] cursor-pointer"
+                <AppLink
+                  view={{ type: 'authors-directory' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-left px-3 py-2 text-sm text-[#3A3A3A] cursor-pointer"
                 >
                   Journalists
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setView({ type: 'admin' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-semibold text-[#BB1919] cursor-pointer flex items-center gap-2"
+                </AppLink>
+                <AppLink
+                  view={{ type: 'admin' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex w-full text-left px-3 py-2 text-sm font-semibold text-[#BB1919] cursor-pointer items-center gap-2"
                 >
                   <Shield className="w-4 h-4" />
                   Staff CMS
-                </button>
+                </AppLink>
               </div>
             </nav>
 

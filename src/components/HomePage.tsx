@@ -58,14 +58,20 @@ export const HomePage: React.FC = () => {
       <div className="w-full min-h-[40vh] flex items-center justify-center px-6 py-16">
         <div className="text-center max-w-md space-y-4">
           <p className="font-bbc-headline text-lg font-bold text-[#121212]">
-            {newsError || 'No stories available'}
+            {newsError ||
+              (language === 'sw' ? 'Hakuna habari bado.' : 'No stories published yet.')}
+          </p>
+          <p className="text-sm text-[#5A5A5A]">
+            {language === 'sw'
+              ? 'Chapisha habari kutoka CMS (Staff) ili ionekane hapa.'
+              : 'Publish a story from Staff CMS to show it here.'}
           </p>
           <button
             type="button"
             onClick={() => void refreshNewsWire()}
             className="px-5 py-2.5 bg-[#BB1919] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#A01616] cursor-pointer"
           >
-            Retry
+            {language === 'sw' ? 'Pakia tena' : 'Reload'}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNews } from '../context/NewsContext';
+import { AppLink } from './common/AppLink';
 import {
   Home,
   Newspaper,
@@ -12,7 +13,6 @@ import {
 export const MobileBottomNav: React.FC = () => {
   const {
     view,
-    setView,
     currentUser,
     isAdminAuthenticated,
     language,
@@ -30,19 +30,19 @@ export const MobileBottomNav: React.FC = () => {
       aria-label="Mobile Navigation"
     >
       {/* 1. Home */}
-      <button
-        onClick={() => setView({ type: 'home' })}
+      <AppLink
+        view={{ type: 'home' }}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
           isHome ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
       >
         <Home className={`w-5 h-5 mb-0.5 ${isHome ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
         <span className="text-[10px] leading-tight tracking-tight">Home</span>
-      </button>
+      </AppLink>
 
       {/* 2. Business Category */}
-      <button
-        onClick={() => setView({ type: 'category', categorySlug: 'business' })}
+      <AppLink
+        view={{ type: 'category', categorySlug: 'business' }}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
           isBusiness ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
@@ -51,11 +51,11 @@ export const MobileBottomNav: React.FC = () => {
         <span className="text-[10px] leading-tight tracking-tight">
           {language === 'sw' ? 'Biashara' : 'Business'}
         </span>
-      </button>
+      </AppLink>
 
       {/* 3. Sports Category */}
-      <button
-        onClick={() => setView({ type: 'category', categorySlug: 'sports' })}
+      <AppLink
+        view={{ type: 'category', categorySlug: 'sports' }}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
           isSports ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
@@ -64,11 +64,11 @@ export const MobileBottomNav: React.FC = () => {
         <span className="text-[10px] leading-tight tracking-tight">
           {language === 'sw' ? 'Michezo' : 'Sports'}
         </span>
-      </button>
+      </AppLink>
 
       {/* 4. Journalists / Staff */}
-      <button
-        onClick={() => setView({ type: 'authors-directory' })}
+      <AppLink
+        view={{ type: 'authors-directory' }}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs ${
           isAuthors ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
@@ -77,18 +77,11 @@ export const MobileBottomNav: React.FC = () => {
         <span className="text-[10px] leading-tight tracking-tight">
           {language === 'sw' ? 'Waandishi' : 'Staff'}
         </span>
-      </button>
+      </AppLink>
 
       {/* 5. Dashboard / Control / Account */}
-      <button
-        onClick={() => {
-          if (isAdminAuthenticated) {
-            setView({ type: 'admin' });
-          } else {
-            // Direct toggle to admin dashboard or auth
-            setView({ type: 'admin' });
-          }
-        }}
+      <AppLink
+        view={{ type: 'admin' }}
         className={`flex-1 min-h-[50px] flex flex-col items-center justify-center py-1 px-1 transition-colors cursor-pointer rounded-xs relative ${
           isAdmin ? 'text-[#BB1919] font-bold' : 'text-stone-600 hover:text-stone-900'
         }`}
@@ -106,7 +99,7 @@ export const MobileBottomNav: React.FC = () => {
         <span className="text-[10px] leading-tight tracking-tight">
           {language === 'sw' ? 'Kidhibiti' : 'Dashboard'}
         </span>
-      </button>
+      </AppLink>
     </nav>
   );
 };

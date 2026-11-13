@@ -74,6 +74,7 @@ export interface Article {
   comments: ArticleComment[];
   commentsEnabled?: boolean;
   videoUrl?: string;
+  audioUrl?: string;
   imageGallery?: string[];
   createdBy?: { id?: string; name: string; email: string; role?: string };
   lastEditedBy?: { id?: string; name: string; email: string; role?: string };

@@ -13,12 +13,12 @@
 
 export const INITIAL_AUTHORS: Author[] = [
   {
-    id: 'auth_wire',
-    name: 'Wire Desk',
-    title: 'News Wire',
+    id: 'auth_source',
+    name: 'THE SOURCE',
+    title: 'Newsroom',
     avatar:
       'https://images.unsplash.com/photo-1504711435509-084227bb48b6?auto=format&fit=crop&w=400&h=400&q=80',
-    bio: 'Live headlines for Tanzania and East Africa from the news wire.',
+    bio: 'Habari asili kutoka newsroom ya THE SOURCE.',
     location: 'Dar es Salaam',
     joinedYear: '2026',
   },
