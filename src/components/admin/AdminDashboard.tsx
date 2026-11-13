@@ -70,6 +70,13 @@ import {
 import { WorldMap } from '../common/WorldMap';
 import { isCloudinaryConfigured, uploadMediaToCloudinary } from '../../lib/cloudinary';
 import { articlePath } from '../../utils/routes';
+import {
+  AUDIO_ACCEPT,
+  FilePickerButton,
+  MEDIA_ACCEPT,
+  PHOTO_ACCEPT,
+  VIDEO_ACCEPT,
+} from './FilePickerButton';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -217,14 +224,11 @@ export const AdminDashboard: React.FC = () => {
   const [formAudioUrl, setFormAudioUrl] = useState('');
   const [formImageGallery, setFormImageGallery] = useState<string[]>([]);
   const [mediaBusy, setMediaBusy] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [formSeoTitle, setFormSeoTitle] = useState('');
   const [formSeoDesc, setFormSeoDesc] = useState('');
   const [formCanonicalUrl, setFormCanonicalUrl] = useState('');
   const [formSocialImage, setFormSocialImage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
-  const videoInputRef = useRef<HTMLInputElement | null>(null);
-  const audioInputRef = useRef<HTMLInputElement | null>(null);
   const contentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Blogger-style Post Composer states
@@ -288,7 +292,6 @@ export const AdminDashboard: React.FC = () => {
   const [categoryColor, setCategoryColor] = useState('#0B192C');
 
   // Media Library Upload State
-  const mediaFileInputRef = useRef<HTMLInputElement | null>(null);
   const [mediaSearch, setMediaSearch] = useState('');
   const [mediaUploadError, setMediaUploadError] = useState('');
 
@@ -550,12 +553,19 @@ export const AdminDashboard: React.FC = () => {
     return uploadMediaToCloudinary(file, { tags });
   };
 
+  const failMediaUpload = (err: unknown, fallback: string) => {
+    const message = err instanceof Error ? err.message : fallback;
+    setMediaError(message);
+    showToast(message);
+  };
+
   const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     try {
       setMediaBusy('photo');
+      setMediaError(null);
       showToast('Inapakia picha kwenye chapisho…');
       const uploaded = await uploadIntoPost(file, ['article', 'featured']);
       setFormImage(uploaded.url);
@@ -563,9 +573,10 @@ export const AdminDashboard: React.FC = () => {
       if (!formImageCredit || formImageCredit === 'The Source / Newsroom') {
         setFormImageCredit('THE SOURCE');
       }
+      if (!formSocialImage) setFormSocialImage(uploaded.url);
       showToast('Picha imewekwa kwenye chapisho.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Photo upload failed.');
+      failMediaUpload(err, 'Photo upload failed.');
     } finally {
       setMediaBusy(null);
     }
@@ -577,6 +588,7 @@ export const AdminDashboard: React.FC = () => {
     if (files.length === 0) return;
     try {
       setMediaBusy('gallery');
+      setMediaError(null);
       showToast('Inapakia picha zaidi…');
       const uploaded: string[] = [];
       for (const file of files) {
@@ -586,7 +598,7 @@ export const AdminDashboard: React.FC = () => {
       setFormImageGallery(prev => [...prev, ...uploaded]);
       showToast(`${uploaded.length} picha zimewekwa kwenye chapisho.`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gallery upload failed.');
+      failMediaUpload(err, 'Gallery upload failed.');
     } finally {
       setMediaBusy(null);
     }
@@ -598,12 +610,13 @@ export const AdminDashboard: React.FC = () => {
     if (!file) return;
     try {
       setMediaBusy('video');
+      setMediaError(null);
       showToast('Inapakia video kwenye chapisho…');
       const uploaded = await uploadIntoPost(file, ['article', 'video']);
       setFormVideoUrl(uploaded.url);
       showToast('Video imewekwa kwenye chapisho.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Video upload failed.');
+      failMediaUpload(err, 'Video upload failed.');
     } finally {
       setMediaBusy(null);
     }
@@ -615,12 +628,13 @@ export const AdminDashboard: React.FC = () => {
     if (!file) return;
     try {
       setMediaBusy('audio');
+      setMediaError(null);
       showToast('Inapakia sauti kwenye chapisho…');
       const uploaded = await uploadIntoPost(file, ['article', 'audio']);
       setFormAudioUrl(uploaded.url);
       showToast('Sauti imewekwa kwenye chapisho.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Audio upload failed.');
+      failMediaUpload(err, 'Audio upload failed.');
     } finally {
       setMediaBusy(null);
     }
@@ -628,6 +642,10 @@ export const AdminDashboard: React.FC = () => {
 
   // Save Article (Blogger-style: simple, fluid, and never blocking on rigid templates)
   const handleSaveArticle = (targetStatus?: ArticleStatus) => {
+    if (mediaBusy) {
+      alert('Tafadhali subiri picha iishe kupakia / Please wait for the photo to finish uploading.');
+      return;
+    }
     if (!formTitle.trim()) {
       alert('Tafadhali weka kichwa cha habari / Please provide an article headline.');
       return;
@@ -704,9 +722,7 @@ export const AdminDashboard: React.FC = () => {
             .replace(/^-+|-+$/g, '')
         : slugFromTitle) || `article-${Date.now()}`;
 
-    const featuredImage =
-      formImage.trim() ||
-      'https://images.unsplash.com/photo-1504711435509-084227bb48b6?auto=format&fit=crop&w=1200&q=80';
+    const featuredImage = formImage.trim();
 
     const payload = {
       title: formTitle.trim(),
@@ -1638,11 +1654,15 @@ export const AdminDashboard: React.FC = () => {
                           >
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
+                                {art.featuredImage ? (
                                 <img
                                   src={art.featuredImage}
                                   alt={art.title}
                                   className="w-12 h-10 object-cover rounded shrink-0 border border-stone-200 bg-stone-100"
                                 />
+                                ) : (
+                                <div className="w-12 h-10 rounded shrink-0 border border-stone-200 bg-stone-100" />
+                                )}
                                 <div className="min-w-0">
                                   <div className="font-bold text-stone-900 truncate max-w-xs sm:max-w-md flex items-center gap-1.5">
                                     {art.title}
@@ -2289,41 +2309,54 @@ export const AdminDashboard: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
+                      <FilePickerButton
+                        accept={PHOTO_ACCEPT}
+                        disabled={mediaBusy === 'photo'}
                         onChange={handleFeaturedImageUpload}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
+                        className="py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2 shadow-2xs transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5 text-stone-600" />
-                        <span>{mediaBusy === 'photo' ? 'Inapakia…' : 'Pakia picha (inabaki kwenye chapisho)'}</span>
-                      </button>
+                        <span>{mediaBusy === 'photo' ? 'Inapakia…' : 'Chagua picha (inabaki kwenye chapisho)'}</span>
+                      </FilePickerButton>
+                      <FilePickerButton
+                        accept={PHOTO_ACCEPT}
+                        capture="environment"
+                        disabled={mediaBusy === 'photo'}
+                        onChange={handleFeaturedImageUpload}
+                        className="py-2 px-3 bg-white hover:bg-stone-50 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2 transition-colors"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 text-stone-600" />
+                        <span>{mediaBusy === 'photo' ? 'Inapakia…' : 'Piga picha kwa kamera'}</span>
+                      </FilePickerButton>
+                      {formImage && (
+                        <button
+                          type="button"
+                          onClick={() => setFormImage('')}
+                          className="w-full py-1.5 text-[11px] font-bold text-red-700 hover:text-red-800 cursor-pointer"
+                        >
+                          Ondoa picha ya jalada
+                        </button>
+                      )}
                     </div>
 
+                    {mediaError && (
+                      <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700 text-[11px] flex items-start gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        <span>{mediaError}</span>
+                      </div>
+                    )}
+
                     <div className="space-y-2 pt-2 border-t border-stone-100">
-                      <input
-                        type="file"
-                        ref={galleryInputRef}
-                        accept="image/*"
+                      <FilePickerButton
+                        accept={PHOTO_ACCEPT}
                         multiple
-                        onChange={handleGalleryUpload}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => galleryInputRef.current?.click()}
                         disabled={mediaBusy === 'gallery'}
-                        className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer"
+                        onChange={handleGalleryUpload}
+                        className="py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2"
                       >
                         <ImageIcon className="w-3.5 h-3.5 text-stone-600" />
                         <span>{mediaBusy === 'gallery' ? 'Inapakia…' : 'Pakia picha zaidi (gallery)'}</span>
-                      </button>
+                      </FilePickerButton>
                       {formImageGallery.length > 0 && (
                         <div className="grid grid-cols-3 gap-1.5">
                           {formImageGallery.map((url, idx) => (
@@ -2400,42 +2433,28 @@ export const AdminDashboard: React.FC = () => {
                       <Video className="w-3.5 h-3.5 text-red-600" />
                       <span>Video na sauti ndani ya chapisho</span>
                     </label>
-                    <input
-                      type="file"
-                      ref={videoInputRef}
-                      accept="video/mp4,video/webm,video/quicktime,video/*"
-                      onChange={handleVideoFileUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => videoInputRef.current?.click()}
+                    <FilePickerButton
+                      accept={VIDEO_ACCEPT}
                       disabled={mediaBusy === 'video'}
-                      className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                      onChange={handleVideoFileUpload}
+                      className="py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2"
                     >
                       <Video className="w-3.5 h-3.5" />
                       <span>{mediaBusy === 'video' ? 'Inapakia video…' : 'Pakia video (MP4 / WebM)'}</span>
-                    </button>
+                    </FilePickerButton>
                     {formVideoUrl && (
                       <video src={formVideoUrl} controls className="w-full rounded bg-black max-h-40" />
                     )}
 
-                    <input
-                      type="file"
-                      ref={audioInputRef}
-                      accept="audio/mpeg,audio/mp3,audio/wav,audio/mp4,audio/aac,audio/*"
-                      onChange={handleAudioFileUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => audioInputRef.current?.click()}
+                    <FilePickerButton
+                      accept={AUDIO_ACCEPT}
                       disabled={mediaBusy === 'audio'}
-                      className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                      onChange={handleAudioFileUpload}
+                      className="py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2"
                     >
                       <Music className="w-3.5 h-3.5" />
                       <span>{mediaBusy === 'audio' ? 'Inapakia sauti…' : 'Pakia sauti (MP3 / WAV / M4A)'}</span>
-                    </button>
+                    </FilePickerButton>
                     {formAudioUrl && (
                       <audio src={formAudioUrl} controls className="w-full" />
                     )}
@@ -2803,21 +2822,15 @@ export const AdminDashboard: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    ref={mediaFileInputRef}
-                    accept="image/*,video/*,audio/*"
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <FilePickerButton
+                    accept={MEDIA_ACCEPT}
                     onChange={handleMediaUpload}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => mediaFileInputRef.current?.click()}
-                    className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold gap-1.5 shadow-xs sm:w-auto"
                   >
                     <Upload className="w-4 h-4" />
-                    <span>Upload Image (&le; 5MB)</span>
-                  </button>
+                    <span>Pakia picha, video, au sauti</span>
+                  </FilePickerButton>
                 </div>
               </div>
 

@@ -492,19 +492,23 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
       {/* Featured Photo Hero */}
       <div className="max-w-5xl mx-auto mb-8">
-        <div className="overflow-hidden bg-stone-100 border border-stone-200">
-          <img
-            src={article.featuredImage}
-            alt={article.title}
-            className="w-full aspect-16/9 sm:aspect-16/10 object-cover"
-          />
-        </div>
-        {(article.imageCaption || article.imageCredit) && (
-          <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-stone-500 font-sans px-1">
-            <span className="italic">{article.imageCaption}</span>
-            <span className="text-[11px] font-mono text-stone-400 mt-1 sm:mt-0">{article.imageCredit}</span>
-          </div>
-        )}
+        {article.featuredImage ? (
+          <>
+            <div className="overflow-hidden bg-stone-100 border border-stone-200">
+              <img
+                src={article.featuredImage}
+                alt={article.title}
+                className="w-full aspect-16/9 sm:aspect-16/10 object-cover"
+              />
+            </div>
+            {(article.imageCaption || article.imageCredit) && (
+              <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-stone-500 font-sans px-1">
+                <span className="italic">{article.imageCaption}</span>
+                <span className="text-[11px] font-mono text-stone-400 mt-1 sm:mt-0">{article.imageCredit}</span>
+              </div>
+            )}
+          </>
+        ) : null}
 
         {/* Embedded Video Player (YouTube or MP4) */}
         {article.videoUrl && (

@@ -2,6 +2,28 @@ import crypto from 'crypto';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  let host = '';
+  try {
+    host = new URL(origin).hostname;
+  } catch {
+    return;
+  }
+  const allowed =
+    host === 'thesource.co.tz' ||
+    host.endsWith('.thesource.co.tz') ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.vercel.app');
+  if (!allowed) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
+}
+
 function sendJson(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -48,8 +70,14 @@ function readBody(req) {
 }
 
 export default async function handler(req, res) {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
   if (req.method && req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'POST, OPTIONS');
     return sendJson(res, 405, { error: 'Method not allowed' });
   }
 
