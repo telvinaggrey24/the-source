@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { getCategoryTheme } from '../utils/categoryTheme';
 import { localizeArticle } from '../utils/articleLocale';
+import { AppLink } from './common/AppLink';
+import { articlePath } from '../utils/routes';
 
 interface ArticleDetailProps {
   slug: string;
@@ -46,6 +48,8 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
     setTextSize,
     language,
     setLanguage,
+    websiteSettings,
+    newsLoading,
   } = useNews();
 
   const article = articles.find(a => a.slug === slug);
@@ -163,6 +167,17 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
     return () => clearInterval(timer);
   }, [isPlayingAudio]);
 
+  if (!article && newsLoading) {
+    return (
+      <div className="max-w-3xl mx-auto py-20 px-6 text-center">
+        <div className="mx-auto mb-4 h-8 w-8 border-2 border-[#BB1919] border-t-transparent rounded-full animate-spin" />
+        <p className="font-bbc-headline text-sm font-bold text-[#121212]">
+          {language === 'sw' ? 'Inapakia habari…' : 'Loading story…'}
+        </p>
+      </div>
+    );
+  }
+
   if (!article) {
     return (
       <div className="max-w-3xl mx-auto py-20 px-6 text-center">
@@ -174,12 +189,12 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
             ? 'Makala uliyoomba inaweza kuwa imehamishwa au kufutwa.'
             : 'The story you requested may have moved or been retired.'}
         </p>
-        <button
-          onClick={() => setView({ type: 'home' })}
-          className="px-6 py-2.5 bg-red-700 text-white font-semibold text-xs uppercase tracking-wider rounded-xs hover:bg-red-800 transition-colors cursor-pointer"
+        <AppLink
+          view={{ type: 'home' }}
+          className="inline-block px-6 py-2.5 bg-red-700 text-white font-semibold text-xs uppercase tracking-wider rounded-xs hover:bg-red-800 transition-colors cursor-pointer"
         >
           {language === 'sw' ? 'Rudi Ukurasa Mkuu' : 'Return to Frontpage'}
-        </button>
+        </AppLink>
       </div>
     );
   }
@@ -200,9 +215,13 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
     .filter(a => a.id !== article.id && a.categoryId === article.categoryId && a.status === 'published')
     .slice(0, 3);
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://thesun.co.tz';
+  const siteOrigin = (websiteSettings.canonicalBaseUrl || 'https://thesource.co.tz').replace(/\/$/, '');
+  const currentUrl =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/article/')
+      ? window.location.href
+      : `${siteOrigin}${articlePath(article.slug)}`;
 
-  const shareText = encodeURIComponent(`${article.title} — THE SUN`);
+  const shareText = encodeURIComponent(`${article.title} — THE SOURCE`);
   const whatsappUrl = `https://api.whatsapp.com/send?text=${shareText}%20${encodeURIComponent(currentUrl)}`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodeURIComponent(currentUrl)}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;
@@ -513,6 +532,22 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
             ) : (
               <video src={article.videoUrl} controls className="w-full aspect-video object-contain" />
             )}
+          </div>
+        )}
+
+        {article.audioUrl && (
+          <div className="mt-5 rounded-xs overflow-hidden bg-stone-900 border border-stone-800 shadow-md">
+            <div className="p-2 bg-stone-950 text-stone-300 text-xs flex items-center gap-1.5 font-bold uppercase tracking-wider">
+              <Volume2 className="w-3.5 h-3.5 text-red-500" />
+              <span>{language === 'sw' ? 'Sauti ya habari' : 'Story audio'}</span>
+            </div>
+            <div className="p-3 bg-stone-900">
+              <audio src={article.audioUrl} controls className="w-full">
+                {language === 'sw'
+                  ? 'Kivinjari chako hakiwezi kucheza sauti hii.'
+                  : 'Your browser cannot play this audio.'}
+              </audio>
+            </div>
           </div>
         )}
       </div>

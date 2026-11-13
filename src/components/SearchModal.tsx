@@ -87,7 +87,7 @@ export const SearchModal: React.FC = () => {
               onChange={e => setSelectedCategory(e.target.value)}
               className="bg-white border border-stone-300 text-stone-800 text-xs py-1 px-2 rounded-2xs focus:outline-hidden"
             >
-              <option value="all">All Departments ({articles.length})</option>
+              <option value="all">All Departments ({publicArticles.length})</option>
               {categories.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.name}

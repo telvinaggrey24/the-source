@@ -18,34 +18,11 @@ import { AuthorProfilePage } from './components/AuthorProfilePage';
 import { AuthorsDirectoryPage } from './components/AuthorsDirectoryPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Footer } from './components/Footer';
-import type { ViewState } from './types';
-
-function analyticsPath(view: ViewState): { path: string; route: string } {
-  switch (view.type) {
-    case 'home':
-      return { path: '/', route: '/' };
-    case 'article':
-      return { path: `/article/${view.slug}`, route: '/article/[slug]' };
-    case 'category':
-      return { path: `/category/${view.categorySlug}`, route: '/category/[slug]' };
-    case 'author':
-      return { path: `/author/${view.authorId}`, route: '/author/[id]' };
-    case 'authors-directory':
-      return { path: '/authors', route: '/authors' };
-    case 'admin':
-      return { path: '/admin', route: '/admin' };
-    case 'page':
-      return { path: `/page/${view.pageId}`, route: '/page/[id]' };
-    case 'search':
-      return { path: '/search', route: '/search' };
-    default:
-      return { path: '/', route: '/' };
-  }
-}
+import { analyticsFromView } from './utils/routes';
 
 const AppContent: React.FC = () => {
   const { view } = useNews();
-  const { path, route } = useMemo(() => analyticsPath(view), [view]);
+  const { path, route } = useMemo(() => analyticsFromView(view), [view]);
 
   return (
     <div className="min-h-screen bg-white text-stone-900 flex flex-col justify-between selection:bg-red-700 selection:text-white pb-16 md:pb-0">

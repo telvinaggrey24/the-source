@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Article } from '../types';
 import { useNews } from '../context/NewsContext';
+import { AppLink } from './common/AppLink';
 import { localizeArticle } from '../utils/articleLocale';
 import { Bookmark, Newspaper } from 'lucide-react';
 
@@ -16,7 +17,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   variant = 'standard',
   rank,
 }) => {
-  const { openArticle, isBookmarked, toggleBookmark, setView, language } = useNews();
+  const { isBookmarked, toggleBookmark, setView, language } = useNews();
   const [imgError, setImgError] = useState(false);
   const bookmarked = isBookmarked(article.id);
   const copy = localizeArticle(article, language);
@@ -26,7 +27,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     month: 'short',
   }).format(new Date(article.publishedAt));
 
-  const handleCardClick = () => openArticle(article);
+  const storyLink = { type: 'article' as const, slug: article.slug };
 
   const renderImage = (aspectClass: string, className = '') => {
     if (imgError || !article.featuredImage) {
@@ -50,7 +51,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           loading="lazy"
         />
         <button
+          type="button"
           onClick={e => {
+            e.preventDefault();
             e.stopPropagation();
             toggleBookmark(article.id);
           }}
@@ -67,7 +70,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   if (variant === 'featured') {
     return (
-      <article onClick={handleCardClick} className="group cursor-pointer">
+      <AppLink view={storyLink} className="group cursor-pointer block">
         {renderImage('aspect-[16/9] sm:aspect-[16/8]')}
         <div className="pt-3 sm:pt-4">
           <span className="text-[#BB1919] text-[0.75rem] font-bold uppercase tracking-[0.04em]">
@@ -84,6 +87,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             <span aria-hidden="true">·</span>
             <span
               onClick={e => {
+                e.preventDefault();
                 e.stopPropagation();
                 if (!article.isWireStory) setView({ type: 'author', authorId: article.author.id });
               }}
@@ -93,14 +97,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             </span>
           </div>
         </div>
-      </article>
+      </AppLink>
     );
   }
 
   if (variant === 'ranking' && rank !== undefined) {
     return (
-      <article
-        onClick={handleCardClick}
+      <AppLink
+        view={storyLink}
         className="group cursor-pointer py-3.5 flex items-start gap-3"
       >
         <span className="font-bbc-headline text-[1.75rem] font-bold text-[#BB1919] w-7 tabular-nums shrink-0 leading-none pt-0.5">
@@ -114,14 +118,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {article.categoryName}
           </span>
         </div>
-      </article>
+      </AppLink>
     );
   }
 
   if (variant === 'horizontal') {
     return (
-      <article
-        onClick={handleCardClick}
+      <AppLink
+        view={storyLink}
         className="group cursor-pointer py-4 border-b border-[#E6E6E6] last:border-b-0 flex gap-3 sm:gap-4"
       >
         <div className="w-[7.5rem] sm:w-36 shrink-0">{renderImage('aspect-[16/10]')}</div>
@@ -134,15 +138,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </h3>
           <span className="mt-2 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
         </div>
-      </article>
+      </AppLink>
     );
   }
 
   if (variant === 'compact') {
     return (
-      <article
-        onClick={handleCardClick}
-        className="group cursor-pointer py-3 border-b border-[#E6E6E6] last:border-b-0"
+      <AppLink
+        view={storyLink}
+        className="group cursor-pointer py-3 border-b border-[#E6E6E6] last:border-b-0 block"
       >
         <span className="text-[#BB1919] text-[0.7rem] font-bold uppercase tracking-[0.04em]">
           {article.categoryName}
@@ -151,12 +155,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           {copy.title}
         </h3>
         <span className="mt-1.5 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
-      </article>
+      </AppLink>
     );
   }
 
   return (
-    <article onClick={handleCardClick} className="group cursor-pointer">
+    <AppLink view={storyLink} className="group cursor-pointer block">
       {renderImage('aspect-[16/10] mb-2.5')}
       <span className="text-[#BB1919] text-[0.7rem] font-bold uppercase tracking-[0.04em]">
         {article.categoryName}
@@ -168,6 +172,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         {copy.summary}
       </p>
       <span className="mt-2 block text-[0.7rem] text-[#6E6E6E]">{dateFormatted}</span>
-    </article>
+    </AppLink>
   );
 };

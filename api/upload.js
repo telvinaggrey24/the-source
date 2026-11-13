@@ -68,9 +68,26 @@ export default async function handler(req, res) {
       payload = raw ? JSON.parse(raw) : {};
     }
 
+    // Browser uploads video/audio/photos directly to Cloudinary with this signature.
+    if (payload.sign === true) {
+      const timestamp = Math.round(Date.now() / 1000);
+      const tags = Array.isArray(payload.tags) ? payload.tags.filter(Boolean).join(',') : '';
+      const signFields = { folder, timestamp };
+      if (tags) signFields.tags = tags;
+      const signature = signParams(signFields, apiSecret);
+      return sendJson(res, 200, {
+        cloudName,
+        apiKey,
+        timestamp,
+        signature,
+        folder,
+        resourceType: payload.resourceType || 'auto',
+      });
+    }
+
     const dataUrl = payload.file || payload.dataUrl;
     if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
-      return sendJson(res, 400, { error: 'Expected JSON body with a data:image/* file field' });
+      return sendJson(res, 400, { error: 'Expected JSON body with sign:true or a data:image/* file field' });
     }
 
     // Rough size check from base64 length

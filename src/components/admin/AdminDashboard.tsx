@@ -31,6 +31,7 @@ import {
   Flame,
   Star,
   Video,
+  Music,
   Search,
   CheckCircle2,
   AlertCircle,
@@ -67,7 +68,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { WorldMap } from '../common/WorldMap';
-import { isCloudinaryConfigured, uploadImageToCloudinary } from '../../lib/cloudinary';
+import { isCloudinaryConfigured, uploadMediaToCloudinary } from '../../lib/cloudinary';
+import { articlePath } from '../../utils/routes';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -142,7 +144,7 @@ export const AdminDashboard: React.FC = () => {
   const [articleSearch, setArticleSearch] = useState('');
   const [articleCategoryFilter, setArticleCategoryFilter] = useState('all');
   const [articleStatusFilter, setArticleStatusFilter] = useState<'all' | ArticleStatus>('all');
-  const [articleSourceFilter, setArticleSourceFilter] = useState<'cms' | 'wire' | 'all'>('all');
+  const [articleSourceFilter, setArticleSourceFilter] = useState<'cms' | 'wire' | 'all'>('cms');
   const [articleVisibilityFilter, setArticleVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>(
     'all'
   );
@@ -200,7 +202,7 @@ export const AdminDashboard: React.FC = () => {
   const [formImageCaption, setFormImageCaption] = useState('');
   const [formImageCredit, setFormImageCredit] = useState('The Source / Newsroom');
   const [formImageAlt, setFormImageAlt] = useState('');
-  const [formAuthorId, setFormAuthorId] = useState(INITIAL_AUTHORS[0]?.id || 'auth_wire');
+  const [formAuthorId, setFormAuthorId] = useState(INITIAL_AUTHORS[0]?.id || 'auth_source');
   const [formReadTime, setFormReadTime] = useState(4);
   const [formIsBreaking, setFormIsBreaking] = useState(false);
   const [formIsFeatured, setFormIsFeatured] = useState(false);
@@ -212,13 +214,17 @@ export const AdminDashboard: React.FC = () => {
   const [formCommentsEnabled, setFormCommentsEnabled] = useState(true);
   const [formSlug, setFormSlug] = useState('');
   const [formVideoUrl, setFormVideoUrl] = useState('');
+  const [formAudioUrl, setFormAudioUrl] = useState('');
   const [formImageGallery, setFormImageGallery] = useState<string[]>([]);
+  const [mediaBusy, setMediaBusy] = useState<string | null>(null);
   const [formSeoTitle, setFormSeoTitle] = useState('');
   const [formSeoDesc, setFormSeoDesc] = useState('');
   const [formCanonicalUrl, setFormCanonicalUrl] = useState('');
   const [formSocialImage, setFormSocialImage] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const audioInputRef = useRef<HTMLInputElement | null>(null);
   const contentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Blogger-style Post Composer states
@@ -474,7 +480,7 @@ export const AdminDashboard: React.FC = () => {
     setFormKeyTakeaways('');
     setFormKeyTakeawaysEnglish('');
     setFormCategoryId(categories[0]?.id || 'cat_business');
-    setFormImage('/src/assets/images/hero_lead_tanzania_rail_1793043305338.jpg');
+    setFormImage('');
     setFormImageCaption('');
     setFormImageCredit('The Source / Newsroom');
     setFormImageAlt('');
@@ -490,6 +496,7 @@ export const AdminDashboard: React.FC = () => {
     setFormCommentsEnabled(true);
     setFormSlug('');
     setFormVideoUrl('');
+    setFormAudioUrl('');
     setFormImageGallery([]);
     setFormSeoTitle('');
     setFormSeoDesc('');
@@ -527,6 +534,7 @@ export const AdminDashboard: React.FC = () => {
     setFormCommentsEnabled(art.commentsEnabled !== false);
     setFormSlug(art.slug || '');
     setFormVideoUrl(art.videoUrl || '');
+    setFormAudioUrl(art.audioUrl || '');
     setFormImageGallery(art.imageGallery || []);
     setFormSeoTitle(art.seoMetaTitle || '');
     setFormSeoDesc(art.seoMetaDescription || '');
@@ -535,28 +543,86 @@ export const AdminDashboard: React.FC = () => {
     setActiveTab('composer');
   };
 
-  // Image upload → Cloudinary (HTTPS URL stored on the article)
+  const uploadIntoPost = async (file: File, tags: string[]) => {
+    if (!isCloudinaryConfigured()) {
+      throw new Error('Cloudinary is not configured. Set CLOUDINARY_* secrets on the server / .env.local.');
+    }
+    return uploadMediaToCloudinary(file, { tags });
+  };
+
   const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-
-    if (!isCloudinaryConfigured()) {
-      alert('Cloudinary is not configured. Set CLOUDINARY_* secrets on the server / .env.local.');
-      return;
-    }
-
     try {
-      showToast('Uploading image to Cloudinary…');
-      const uploaded = await uploadImageToCloudinary(file, { tags: ['article', 'featured'] });
+      setMediaBusy('photo');
+      showToast('Inapakia picha kwenye chapisho…');
+      const uploaded = await uploadIntoPost(file, ['article', 'featured']);
       setFormImage(uploaded.url);
       if (!formImageAlt) setFormImageAlt(file.name.replace(/\.[^/.]+$/, ''));
       if (!formImageCredit || formImageCredit === 'The Source / Newsroom') {
-        setFormImageCredit('The Source / Cloudinary');
+        setFormImageCredit('THE SOURCE');
       }
-      showToast('Image uploaded to Cloudinary.');
+      showToast('Picha imewekwa kwenye chapisho.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Cloudinary upload failed.');
+      alert(err instanceof Error ? err.message : 'Photo upload failed.');
+    } finally {
+      setMediaBusy(null);
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    try {
+      setMediaBusy('gallery');
+      showToast('Inapakia picha zaidi…');
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const result = await uploadIntoPost(file, ['article', 'gallery']);
+        uploaded.push(result.url);
+      }
+      setFormImageGallery(prev => [...prev, ...uploaded]);
+      showToast(`${uploaded.length} picha zimewekwa kwenye chapisho.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gallery upload failed.');
+    } finally {
+      setMediaBusy(null);
+    }
+  };
+
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setMediaBusy('video');
+      showToast('Inapakia video kwenye chapisho…');
+      const uploaded = await uploadIntoPost(file, ['article', 'video']);
+      setFormVideoUrl(uploaded.url);
+      showToast('Video imewekwa kwenye chapisho.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Video upload failed.');
+    } finally {
+      setMediaBusy(null);
+    }
+  };
+
+  const handleAudioFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setMediaBusy('audio');
+      showToast('Inapakia sauti kwenye chapisho…');
+      const uploaded = await uploadIntoPost(file, ['article', 'audio']);
+      setFormAudioUrl(uploaded.url);
+      showToast('Sauti imewekwa kwenye chapisho.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Audio upload failed.');
+    } finally {
+      setMediaBusy(null);
     }
   };
 
@@ -668,6 +734,7 @@ export const AdminDashboard: React.FC = () => {
       tags: tagsArray.length > 0 ? tagsArray : ['the-source'],
       slug: finalSlug,
       videoUrl: formVideoUrl.trim() || undefined,
+      audioUrl: formAudioUrl.trim() || undefined,
       imageGallery: formImageGallery.length > 0 ? formImageGallery : undefined,
       status: finalStatus,
       scheduledFor: formScheduledDate || undefined,
@@ -800,8 +867,8 @@ export const AdminDashboard: React.FC = () => {
 
     setMediaUploadError('');
     try {
-      showToast('Uploading to Cloudinary…');
-      const uploaded = await uploadImageToCloudinary(file, { tags: ['media-library'] });
+      showToast('Inapakia midia…');
+      const uploaded = await uploadMediaToCloudinary(file, { tags: ['media-library'] });
       const dims =
         uploaded.width && uploaded.height
           ? `${uploaded.width} x ${uploaded.height}`
@@ -809,12 +876,12 @@ export const AdminDashboard: React.FC = () => {
       const item = addMediaItem({
         fileName: file.name,
         url: uploaded.url,
-        fileType: uploaded.format ? `image/${uploaded.format}` : file.type,
+        fileType: file.type || (uploaded.format ? `${uploaded.kind}/${uploaded.format}` : 'application/octet-stream'),
         fileSize: uploaded.bytes || file.size,
         altText: file.name.replace(/\.[^/.]+$/, ''),
         dimensions: dims,
       });
-      showToast(`Uploaded ${item.fileName} to Cloudinary`);
+      showToast(`${item.fileName} imewekwa kwenye maktaba`);
     } catch (err) {
       setMediaUploadError(err instanceof Error ? err.message : 'Cloudinary upload failed.');
     }
@@ -1496,9 +1563,8 @@ export const AdminDashboard: React.FC = () => {
                     onChange={e => setArticleSourceFilter(e.target.value as 'cms' | 'wire' | 'all')}
                     className="px-3 py-2 bg-stone-50 border border-stone-300 rounded text-xs text-stone-800 font-medium focus:outline-none focus:border-red-500"
                   >
-                    <option value="all">Site feed (CMS + Wire)</option>
-                    <option value="cms">Our posts (CMS)</option>
-                    <option value="wire">Wire only</option>
+                    <option value="cms">Habari zetu (CMS)</option>
+                    <option value="all">Zote</option>
                   </select>
 
                   <select
@@ -1518,10 +1584,10 @@ export const AdminDashboard: React.FC = () => {
                     onClick={() => void refreshNewsWire()}
                     disabled={newsLoading}
                     className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 rounded text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-                    title="Refresh the same live wire readers see"
+                    title="Reload CMS posts from Firestore"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} />
-                    <span>Refresh feed</span>
+                    <span>Pakia tena</span>
                   </button>
 
                   <button
@@ -2236,16 +2302,47 @@ export const AdminDashboard: React.FC = () => {
                         className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5 text-stone-600" />
-                        <span>Pakia Picha Mpya (&le; 5MB)</span>
+                        <span>{mediaBusy === 'photo' ? 'Inapakia…' : 'Pakia picha (inabaki kwenye chapisho)'}</span>
                       </button>
+                    </div>
 
+                    <div className="space-y-2 pt-2 border-t border-stone-100">
                       <input
-                        type="text"
-                        value={formImage}
-                        onChange={e => setFormImage(e.target.value)}
-                        placeholder="Au weka Image URL (mfano: https://...)"
-                        className="w-full px-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded text-xs font-mono text-[10px]"
+                        type="file"
+                        ref={galleryInputRef}
+                        accept="image/*"
+                        multiple
+                        onChange={handleGalleryUpload}
+                        className="hidden"
                       />
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        disabled={mediaBusy === 'gallery'}
+                        className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 text-stone-600" />
+                        <span>{mediaBusy === 'gallery' ? 'Inapakia…' : 'Pakia picha zaidi (gallery)'}</span>
+                      </button>
+                      {formImageGallery.length > 0 && (
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {formImageGallery.map((url, idx) => (
+                            <div key={`${url}-${idx}`} className="relative aspect-square bg-stone-100 rounded overflow-hidden">
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFormImageGallery(prev => prev.filter((_, i) => i !== idx))
+                                }
+                                className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 cursor-pointer"
+                                aria-label="Remove photo"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs pt-1">
@@ -2297,24 +2394,54 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Video & Media Embedding (YouTube / MP4) */}
-                  <div className="bg-white rounded-lg border border-stone-200 p-4 shadow-xs space-y-2 text-xs">
+                  {/* Video & audio files stay inside the article */}
+                  <div className="bg-white rounded-lg border border-stone-200 p-4 shadow-xs space-y-3 text-xs">
                     <label className="block font-bold uppercase tracking-wider text-stone-900 pb-1 border-b border-stone-200 flex items-center gap-1.5">
                       <Video className="w-3.5 h-3.5 text-red-600" />
-                      <span>Video ya Habari (Embed Video &bull; Optional)</span>
+                      <span>Video na sauti ndani ya chapisho</span>
                     </label>
                     <input
-                      type="url"
-                      value={formVideoUrl}
-                      onChange={e => setFormVideoUrl(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=... au kiungo cha video"
-                      className="w-full p-2 bg-stone-50 border border-stone-300 rounded text-xs font-mono"
+                      type="file"
+                      ref={videoInputRef}
+                      accept="video/mp4,video/webm,video/quicktime,video/*"
+                      onChange={handleVideoFileUpload}
+                      className="hidden"
                     />
+                    <button
+                      type="button"
+                      onClick={() => videoInputRef.current?.click()}
+                      disabled={mediaBusy === 'video'}
+                      className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    >
+                      <Video className="w-3.5 h-3.5" />
+                      <span>{mediaBusy === 'video' ? 'Inapakia video…' : 'Pakia video (MP4 / WebM)'}</span>
+                    </button>
                     {formVideoUrl && (
-                      <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Video itaonyeshwa rasmi ndani ya chapisho
-                      </p>
+                      <video src={formVideoUrl} controls className="w-full rounded bg-black max-h-40" />
                     )}
+
+                    <input
+                      type="file"
+                      ref={audioInputRef}
+                      accept="audio/mpeg,audio/mp3,audio/wav,audio/mp4,audio/aac,audio/*"
+                      onChange={handleAudioFileUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => audioInputRef.current?.click()}
+                      disabled={mediaBusy === 'audio'}
+                      className="w-full py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    >
+                      <Music className="w-3.5 h-3.5" />
+                      <span>{mediaBusy === 'audio' ? 'Inapakia sauti…' : 'Pakia sauti (MP3 / WAV / M4A)'}</span>
+                    </button>
+                    {formAudioUrl && (
+                      <audio src={formAudioUrl} controls className="w-full" />
+                    )}
+                    <p className="text-[10px] text-stone-500">
+                      Faili zinawekwa kwenye chapisho na zinaonekana kwa msomaji ndani ya habari — si kiungo cha nje.
+                    </p>
                   </div>
 
                   {/* Author / Staff Byline (With "+ Add Staff" shortcut) */}
@@ -2669,10 +2796,10 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-stone-200">
                 <div>
                   <h2 className="text-base font-bold text-[#0B192C]">
-                    Media & Image Library
+                    Media library
                   </h2>
                   <p className="text-xs text-stone-500">
-                    Images upload to Cloudinary (max 5MB). Delivery URLs are stored on each media item.
+                    Pakia picha, video, au sauti. Faili zinaonekana kwenye chapisho.
                   </p>
                 </div>
 
@@ -2680,7 +2807,7 @@ export const AdminDashboard: React.FC = () => {
                   <input
                     type="file"
                     ref={mediaFileInputRef}
-                    accept="image/*"
+                    accept="image/*,video/*,audio/*"
                     onChange={handleMediaUpload}
                     className="hidden"
                   />
@@ -4267,6 +4394,11 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="pt-2 space-y-2">
+              <p className="text-[11px] font-mono text-stone-500 break-all">
+                {typeof window !== 'undefined'
+                  ? `${window.location.origin}${articlePath(publishedStoryModal.slug)}`
+                  : articlePath(publishedStoryModal.slug)}
+              </p>
               <button
                 onClick={() => {
                   const targetSlug = publishedStoryModal.slug;

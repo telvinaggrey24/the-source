@@ -45,7 +45,9 @@ import {
   INITIAL_WEBSITE_SETTINGS,
 } from '../data/initialData';
 import type { SiteLanguage } from '../utils/locale';
+import { pathFromView, viewFromPath } from '../utils/routes';
 import { fetchHiddenArticleIds, saveHiddenArticleIds } from '../lib/moderation';
+import { fetchSiteConfig, saveSiteConfig } from '../lib/siteConfig';
 
 interface NewsContextType {
   // Articles
@@ -174,7 +176,7 @@ interface NewsContextType {
   exportSubscribersCSV: () => void;
   exportArticlesJson: () => void;
 
-  // Live news wire (NewsData.io + NewsAPI.org)
+  /** Reload CMS posts from Firestore (no third-party wire). */
   newsLoading: boolean;
   newsError: string | null;
   refreshNewsWire: () => Promise<void>;
@@ -293,24 +295,19 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const publicArticles = useMemo(
     () =>
       articles.filter(
-        a => a.status === 'published' && !hiddenArticleIds.includes(a.id) && !isGoogleNewsArtifact(a)
+        a =>
+          a.status === 'published' &&
+          !a.isWireStory &&
+          !hiddenArticleIds.includes(a.id) &&
+          !isGoogleNewsArtifact(a)
       ),
     [articles, hiddenArticleIds]
   );
 
   const isArticleHidden = (id: string) => hiddenArticleIds.includes(id);
 
-  // Authors state (editable from staff CMS)
-  const [authors, setAuthors] = useState<Author[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.AUTHORS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return INITIAL_AUTHORS;
-  });
+  // Authors — shared via Firestore so bylines match across browsers
+  const [authors, setAuthors] = useState<Author[]>(INITIAL_AUTHORS);
 
   const getAuthorById = (id: string): Author | undefined => {
     return (
@@ -326,29 +323,8 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Categories state — primary desks only on public nav
-  const [categories, setCategories] = useState<Category[]>(() => {
-    try {
-      localStorage.removeItem('the_source_categories_v3');
-      const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      if (stored) {
-        const parsed: Category[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.some(c => c.slug === 'politics')) {
-          return parsed.map(c => ({
-            ...c,
-            isActive: PRIMARY_CATEGORY_SLUGS.includes(
-              c.slug as (typeof PRIMARY_CATEGORY_SLUGS)[number]
-            )
-              ? c.isActive !== false
-              : false,
-          }));
-        }
-      }
-      return INITIAL_CATEGORIES;
-    } catch {
-      return INITIAL_CATEGORIES;
-    }
-  });
+  // Categories — shared via Firestore so every browser sees the same nav
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
 
   // Active = public nav + homepage. Toggle off in CMS to hide a desk.
   const activeCategories = useMemo(() => {
@@ -395,25 +371,12 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Website Appearance Settings state
-  const [appearanceSettings, setAppearanceSettings] = useState<WebsiteAppearanceSettings>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.APPEARANCE);
-      return stored ? JSON.parse(stored) : INITIAL_APPEARANCE_SETTINGS;
-    } catch {
-      return INITIAL_APPEARANCE_SETTINGS;
-    }
-  });
+  // Website Appearance Settings — Firestore public config (not per-browser)
+  const [appearanceSettings, setAppearanceSettings] =
+    useState<WebsiteAppearanceSettings>(INITIAL_APPEARANCE_SETTINGS);
 
-  // Website Settings state
-  const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettings>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return stored ? JSON.parse(stored) : INITIAL_WEBSITE_SETTINGS;
-    } catch {
-      return INITIAL_WEBSITE_SETTINGS;
-    }
-  });
+  // Website Settings — Firestore public config (not per-browser)
+  const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettings>(INITIAL_WEBSITE_SETTINGS);
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>(() => {
@@ -425,15 +388,8 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Ads state
-  const [ads, setAds] = useState<AdBanner[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ADS);
-      return stored ? JSON.parse(stored) : INITIAL_ADS;
-    } catch {
-      return INITIAL_ADS;
-    }
-  });
+  // Ads state — shared via Firestore public config
+  const [ads, setAds] = useState<AdBanner[]>(INITIAL_ADS);
 
   // Bookmarks state
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -449,21 +405,9 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentAdminUser, setCurrentAdminUser] = useState<UserProfile | null>(null);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // Language: original (SW) until the reader chooses — never auto-translate
-  const [languageManual, setLanguageManual] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.LANG_MANUAL) === '1';
-    } catch {
-      return false;
-    }
-  });
-  const [language, setLanguageState] = useState<SiteLanguage>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.LANG);
-      if (stored === 'sw' || stored === 'en') return stored;
-    } catch {}
-    return 'sw';
-  });
+  // Kiswahili is the site language. Header SW/EN still works; no first-visit popup.
+  const [languageManual, setLanguageManual] = useState(true);
+  const [language, setLanguageState] = useState<SiteLanguage>('sw');
 
   // Text size state
   const [textSize, setTextSizeState] = useState<'sm' | 'md' | 'lg' | 'xl'>(() => {
@@ -475,8 +419,12 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // View state
-  const [view, setViewState] = useState<ViewState>({ type: 'home' });
+  const siteConfigReady = useRef(false);
+
+  // View state — hydrate from the URL so each page has a real link
+  const [view, setViewState] = useState<ViewState>(() =>
+    typeof window === 'undefined' ? { type: 'home' } : viewFromPath(window.location.pathname)
+  );
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
@@ -546,95 +494,66 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNewsLoading(true);
     setNewsError(null);
     try {
-      try {
-        localStorage.removeItem('the_source_articles_v4_bilingual');
-        localStorage.removeItem(STORAGE_KEYS.ARTICLES);
-      } catch {}
-
-      const res = await fetch('/api/news');
-      const raw = await res.text();
-      let data: { error?: string; articles?: Article[] } = {};
-      try {
-        data = raw ? JSON.parse(raw) : {};
-      } catch {
-        throw new Error(
-          res.ok
-            ? 'News API returned an invalid response'
-            : `News API failed (${res.status}). ${raw.slice(0, 120).trim() || 'Server error'}`
-        );
-      }
-      if (!res.ok) {
-        throw new Error(data?.error || 'Failed to load live news wire');
-      }
-      const wireArticles: Article[] = (Array.isArray(data.articles) ? data.articles : []).filter(
-        a => !isGoogleNewsArtifact(a)
-      );
-      // Keep CMS posts; only replace wire stories (never keep Google News leftovers)
+      const remoteCms = await fetchCmsArticles();
       setArticles(prev => {
-        const cms = prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
-        const merged = [...cms, ...wireArticles];
+        const drafts = prev.filter(
+          a => !a.isWireStory && !isGoogleNewsArtifact(a) && a.status !== 'published'
+        );
+        const merged = mergeCmsArticles(drafts, remoteCms.filter(a => !a.isWireStory));
         persistCmsArticles(merged);
         return merged;
       });
-
-      const tickerSource = [...loadCmsArticles(), ...wireArticles];
-      const ticker = tickerSource
-        .filter(a => a.status === 'published')
-        .slice(0, 5)
-        .map(a => a.title)
-        .join(' /// ');
-      if (ticker) {
-        setAppearanceSettings(prev => ({
-          ...prev,
-          breakingNewsTicker: ticker,
-          featuredStoryId: prev.featuredStoryId || tickerSource[0]?.id || '',
-        }));
-      }
     } catch (error) {
-      setNewsError(error instanceof Error ? error.message : 'Failed to load live news wire');
-      // Never wipe CMS posts on wire failure
-      setArticles(prev => {
-        const cms = prev.filter(a => !a.isWireStory);
-        return cms.length > 0 ? cms : loadCmsArticles();
-      });
+      setNewsError(error instanceof Error ? error.message : 'Imeshindwa kupakia habari.');
+      setArticles(prev => prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a)));
     } finally {
       setNewsLoading(false);
     }
   };
 
-  // Load shared CMS posts + hidden list from Firestore, then refresh the live wire
+  // Load shared CMS posts + public site config from Firestore (same for every browser)
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [remoteCms, remoteHidden] = await Promise.all([
+      const [remoteCms, remoteHidden, remoteConfig] = await Promise.all([
         fetchCmsArticles(),
         fetchHiddenArticleIds(),
+        fetchSiteConfig(),
       ]);
       if (cancelled) return;
+
+      if (remoteConfig) {
+        setCategories(remoteConfig.categories);
+        setAppearanceSettings(remoteConfig.appearance);
+        setWebsiteSettings(remoteConfig.website);
+        if (remoteConfig.ads) setAds(remoteConfig.ads);
+        if (remoteConfig.authors && remoteConfig.authors.length > 0) {
+          setAuthors(remoteConfig.authors);
+        }
+      }
+
       if (remoteHidden.length > 0) {
-        setHiddenArticleIds(prev => {
-          const merged = Array.from(new Set([...prev, ...remoteHidden]));
-          try {
-            localStorage.setItem(STORAGE_KEYS.HIDDEN_ARTICLES, JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
+        setHiddenArticleIds(remoteHidden);
+        try {
+          localStorage.setItem(STORAGE_KEYS.HIDDEN_ARTICLES, JSON.stringify(remoteHidden));
+        } catch {}
       }
-      if (remoteCms.length > 0) {
-        setArticles(prev => {
-          const localCms = prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a));
-          const wire = prev.filter(a => a.isWireStory);
-          const mergedCms = mergeCmsArticles(localCms, remoteCms);
-          persistCmsArticles(mergedCms);
-          return [...mergedCms, ...wire];
-        });
-      }
-      await refreshNewsWire();
+
+      setArticles(prev => {
+        const drafts = prev.filter(
+          a => !a.isWireStory && !isGoogleNewsArtifact(a) && a.status !== 'published'
+        );
+        const merged = mergeCmsArticles(drafts, remoteCms.filter(a => !a.isWireStory));
+        persistCmsArticles(merged);
+        return merged;
+      });
+
+      siteConfigReady.current = true;
+      setNewsLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist editorial CMS articles + authors
@@ -698,6 +617,27 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Storage write failed', e);
     }
   }, [websiteSettings]);
+
+  useEffect(() => {
+    if (!siteConfigReady.current || !isAdminAuthenticated) return;
+    const timer = window.setTimeout(() => {
+      void saveSiteConfig({
+        categories,
+        appearance: appearanceSettings,
+        website: websiteSettings,
+        ads,
+        authors,
+      }).catch(err => console.warn('[siteConfig] save failed', err));
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [
+    categories,
+    appearanceSettings,
+    websiteSettings,
+    ads,
+    authors,
+    isAdminAuthenticated,
+  ]);
 
   useEffect(() => {
     try {
@@ -1519,8 +1459,28 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // View & UI Navigation
   const setView = (newView: ViewState) => {
     setViewState(newView);
+    if (newView.type !== 'search') {
+      const nextPath = pathFromView(newView);
+      if (window.location.pathname !== nextPath) {
+        window.history.pushState({ view: newView }, '', nextPath);
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const expected = pathFromView(view);
+    const current = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (current !== expected) {
+      window.history.replaceState({ view }, '', expected);
+    }
+
+    const onPopState = () => {
+      setViewState(viewFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const openArticle = (articleOrSlug: Article | string) => {
     const art =
@@ -1572,7 +1532,6 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(STORAGE_KEYS.SETTINGS);
     localStorage.removeItem(STORAGE_KEYS.LOGS);
 
-    void refreshNewsWire();
     logAdminActivity('Restored Newsroom Defaults', 'System Core', 'settings', 'Reset all articles, categories, and settings');
   };
 

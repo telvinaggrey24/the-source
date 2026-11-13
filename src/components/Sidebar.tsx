@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNews } from '../context/NewsContext';
+import { AppLink } from './common/AppLink';
 import { CheckCircle2 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { publicArticles, openArticle, addSubscriber, language, refreshNewsWire, newsLoading } = useNews();
+  const { publicArticles, addSubscriber, language, refreshNewsWire, newsLoading } = useNews();
   const [emailInput, setEmailInput] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -33,19 +34,20 @@ export const Sidebar: React.FC = () => {
             disabled={newsLoading}
             className="text-[0.7rem] font-bold uppercase tracking-wide text-[#BB1919] hover:underline cursor-pointer disabled:opacity-50"
           >
-            {newsLoading ? '…' : 'Refresh'}
+            {newsLoading ? '…' : language === 'sw' ? 'Pakia' : 'Reload'}
           </button>
         </div>
         {latest.length === 0 ? (
-          <p className="text-sm text-[#6E6E6E] py-3">No headlines yet.</p>
+          <p className="text-sm text-[#6E6E6E] py-3">
+            {language === 'sw' ? 'Hakuna vichwa bado.' : 'No headlines yet.'}
+          </p>
         ) : (
           <ul className="divide-y divide-[#E6E6E6]">
             {latest.map(art => (
               <li key={art.id}>
-                <button
-                  type="button"
-                  onClick={() => openArticle(art)}
-                  className="w-full text-left py-3 group cursor-pointer"
+                <AppLink
+                  view={{ type: 'article', slug: art.slug }}
+                  className="block w-full text-left py-3 group cursor-pointer"
                 >
                   <span className="text-[#BB1919] text-[0.65rem] font-bold uppercase tracking-wide">
                     {art.categoryName}
@@ -53,7 +55,7 @@ export const Sidebar: React.FC = () => {
                   <span className="mt-1 block font-bbc-headline text-[0.95rem] font-bold text-[#121212] leading-snug group-hover:underline">
                     {art.title}
                   </span>
-                </button>
+                </AppLink>
               </li>
             ))}
           </ul>
