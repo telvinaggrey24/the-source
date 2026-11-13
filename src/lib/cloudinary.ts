@@ -1,3 +1,5 @@
+import { prepareNewsPhoto } from './prepareNewsPhoto';
+
 export interface CloudinaryUploadResult {
   url: string;
   publicId: string;
@@ -11,6 +13,7 @@ export interface CloudinaryUploadResult {
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const AUDIO_MAX_BYTES = 20 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+const SERVER_FALLBACK_BYTES = 3.5 * 1024 * 1024;
 
 export function isCloudinaryConfigured(): boolean {
   return Boolean(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim()) || true;
@@ -19,14 +22,20 @@ export function isCloudinaryConfigured(): boolean {
 type MediaKind = 'image' | 'video' | 'audio';
 
 function detectKind(file: File): MediaKind {
-  if (file.type.startsWith('video/')) return 'video';
-  if (file.type.startsWith('audio/')) return 'audio';
-  if (file.type.startsWith('image/')) return 'image';
+  const type = (file.type || '').toLowerCase();
   const name = file.name.toLowerCase();
-  if (/\.(mp4|webm|mov|m4v|ogv)$/.test(name)) return 'video';
-  if (/\.(mp3|wav|m4a|aac|ogg|oga|flac)$/.test(name)) return 'audio';
-  if (/\.(jpe?g|png|gif|webp|avif)$/.test(name)) return 'image';
-  throw new Error('Unsupported file. Use a photo (JPEG/PNG/WebP), video (MP4/WebM), or audio (MP3/WAV/M4A).');
+  if (type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv)$/.test(name)) return 'video';
+  if (type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|oga|flac)$/.test(name)) return 'audio';
+  if (
+    type.startsWith('image/') ||
+    type.includes('heic') ||
+    type.includes('heif') ||
+    /\.(jpe?g|png|gif|webp|avif|hei[cf]|bmp|tiff?)$/.test(name) ||
+    (!type && /^img_/i.test(file.name))
+  ) {
+    return 'image';
+  }
+  throw new Error('Unsupported file. Use a photo (JPEG/PNG/HEIC), video (MP4/WebM), or audio (MP3/WAV/M4A).');
 }
 
 function maxBytesFor(kind: MediaKind): number {
@@ -40,41 +49,134 @@ function cloudinaryResourceType(kind: MediaKind): 'image' | 'video' {
   return kind === 'image' ? 'image' : 'video';
 }
 
-async function signUpload(resourceType: 'image' | 'video', tags: string[]): Promise<{
+function looksLikeRedirectPage(raw: string, status: number): boolean {
+  return (
+    status === 301 ||
+    status === 302 ||
+    status === 307 ||
+    status === 308 ||
+    /redirecting/i.test(raw) ||
+    /^\s*</.test(raw)
+  );
+}
+
+function uploadApiUrls(): string[] {
+  const urls = ['/api/upload'];
+  if (typeof window === 'undefined') return urls;
+  const { protocol, hostname } = window.location;
+  // Apex thesource.co.tz 308s POST /api/upload to www and iOS Safari drops the body.
+  if (hostname === 'thesource.co.tz') {
+    urls.push(`${protocol}//www.thesource.co.tz/api/upload`);
+  }
+  return urls;
+}
+
+async function postUploadApi(body: unknown): Promise<{
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown>;
+}> {
+  const init: RequestInit = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+
+  const urls = uploadApiUrls();
+  let lastStatus = 0;
+  let lastRaw = '';
+
+  for (let i = 0; i < urls.length; i += 1) {
+    const url = urls[i];
+    try {
+      const res = await fetch(url, init);
+      const raw = await res.text();
+      lastStatus = res.status;
+      lastRaw = raw;
+      if (looksLikeRedirectPage(raw, res.status) && i < urls.length - 1) continue;
+      let data: Record<string, unknown> = {};
+      try {
+        data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      } catch {
+        if (i < urls.length - 1) continue;
+        throw new Error(
+          looksLikeRedirectPage(raw, res.status)
+            ? 'Open the site at www.thesource.co.tz, then upload the photo.'
+            : res.ok
+              ? 'Invalid upload response'
+              : `Upload failed (${res.status})`
+        );
+      }
+      return { ok: res.ok, status: res.status, data };
+    } catch (error) {
+      if (i === urls.length - 1) throw error;
+    }
+  }
+
+  throw new Error(
+    lastStatus === 308 || /redirecting/i.test(lastRaw)
+      ? 'Open the site at www.thesource.co.tz, then upload the photo.'
+      : `Could not reach the upload service (${lastStatus || 'network'}).`
+  );
+}
+
+async function signUpload(
+  resourceType: 'image' | 'video',
+  tags: string[]
+): Promise<{
   cloudName: string;
   apiKey: string;
   timestamp: number;
   signature: string;
   folder: string;
 }> {
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sign: true, resourceType, tags }),
-  });
-  const raw = await res.text();
-  let data: {
-    error?: string;
-    cloudName?: string;
-    apiKey?: string;
-    timestamp?: number;
-    signature?: string;
-    folder?: string;
-  } = {};
-  try {
-    data = raw ? JSON.parse(raw) : {};
-  } catch {
-    throw new Error(res.ok ? 'Invalid upload signature' : `Upload failed (${res.status})`);
+  const { ok, status, data } = await postUploadApi({ sign: true, resourceType, tags });
+  const cloudName = typeof data.cloudName === 'string' ? data.cloudName : '';
+  const apiKey = typeof data.apiKey === 'string' ? data.apiKey : '';
+  const signature = typeof data.signature === 'string' ? data.signature : '';
+  const timestamp = typeof data.timestamp === 'number' ? data.timestamp : Number(data.timestamp);
+  const folder = typeof data.folder === 'string' ? data.folder : 'the-source';
+  if (!ok || !cloudName || !apiKey || !signature || !timestamp) {
+    throw new Error(
+      (typeof data.error === 'string' && data.error) || `Could not start upload (${status})`
+    );
   }
-  if (!res.ok || !data.cloudName || !data.apiKey || !data.signature || !data.timestamp) {
-    throw new Error(data.error || `Could not start upload (${res.status})`);
+  return { cloudName, apiKey, timestamp, signature, folder };
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read this photo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImageViaApi(
+  file: File,
+  tags: string[]
+): Promise<CloudinaryUploadResult & { kind: 'image' }> {
+  const dataUrl = await fileToDataUrl(file);
+  if (!dataUrl.startsWith('data:image/')) {
+    throw new Error('Could not read this photo. Try JPEG or PNG.');
+  }
+  const { ok, status, data } = await postUploadApi({ file: dataUrl, tags });
+  const url = typeof data.url === 'string' ? data.url : '';
+  if (!ok || !url) {
+    throw new Error(
+      (typeof data.error === 'string' && data.error) || `Photo upload failed (${status})`
+    );
   }
   return {
-    cloudName: data.cloudName,
-    apiKey: data.apiKey,
-    timestamp: data.timestamp,
-    signature: data.signature,
-    folder: data.folder || 'the-source',
+    url,
+    publicId: typeof data.publicId === 'string' ? data.publicId : '',
+    width: typeof data.width === 'number' ? data.width : undefined,
+    height: typeof data.height === 'number' ? data.height : undefined,
+    format: typeof data.format === 'string' ? data.format : undefined,
+    bytes: typeof data.bytes === 'number' ? data.bytes : file.size,
+    resourceType: 'image',
+    kind: 'image',
   };
 }
 
@@ -86,11 +188,19 @@ export async function uploadMediaToCloudinary(
   file: File,
   options?: { tags?: string[] }
 ): Promise<CloudinaryUploadResult & { kind: MediaKind }> {
-  const kind = detectKind(file);
+  let working = file;
+  let kind = detectKind(working);
+  if (kind === 'image') {
+    working = await prepareNewsPhoto(working);
+    kind = 'image';
+  }
+
   const limit = maxBytesFor(kind);
-  if (file.size > limit) {
+  if (working.size > limit) {
     const mb = Math.round(limit / (1024 * 1024));
-    throw new Error(`${kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Audio'} must be ${mb}MB or smaller.`);
+    throw new Error(
+      `${kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Audio'} must be ${mb}MB or smaller.`
+    );
   }
 
   const resourceType = cloudinaryResourceType(kind);
@@ -98,7 +208,7 @@ export async function uploadMediaToCloudinary(
   const signed = await signUpload(resourceType, tags);
 
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', working);
   form.append('api_key', signed.apiKey);
   form.append('timestamp', String(signed.timestamp));
   form.append('signature', signed.signature);
@@ -120,6 +230,13 @@ export async function uploadMediaToCloudinary(
   };
 
   if (!upstream.ok) {
+    if (kind === 'image' && working.size <= SERVER_FALLBACK_BYTES) {
+      try {
+        return await uploadImageViaApi(working, tags);
+      } catch {
+        // Keep the Cloudinary error — it is usually more specific.
+      }
+    }
     throw new Error(data.error?.message || `Upload failed (${upstream.status})`);
   }
 
@@ -143,8 +260,16 @@ export async function uploadImageToCloudinary(
   file: File,
   options?: { tags?: string[] }
 ): Promise<CloudinaryUploadResult> {
-  if (!file.type.startsWith('image/') && !/\.(jpe?g|png|gif|webp|avif)$/i.test(file.name)) {
-    throw new Error('Only image files are allowed (JPEG, PNG, WebP, GIF).');
+  const type = (file.type || '').toLowerCase();
+  const name = file.name.toLowerCase();
+  const isImage =
+    type.startsWith('image/') ||
+    type.includes('heic') ||
+    type.includes('heif') ||
+    /\.(jpe?g|png|gif|webp|avif|hei[cf])$/i.test(name) ||
+    (!type && /^img_/i.test(file.name));
+  if (!isImage) {
+    throw new Error('Only image files are allowed (JPEG, PNG, WebP, HEIC).');
   }
   return uploadMediaToCloudinary(file, options);
 }

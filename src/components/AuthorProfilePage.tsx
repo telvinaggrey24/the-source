@@ -475,6 +475,7 @@ export const AuthorProfilePage: React.FC<AuthorProfilePageProps> = ({ authorId }
                   >
                     {/* Thumbnail */}
                     <div className="w-full sm:w-56 aspect-16/10 rounded-2xs overflow-hidden bg-stone-100 shrink-0 relative">
+                      {art.featuredImage ? (
                       <img
                         src={art.featuredImage}
                         alt={art.title}
@@ -482,6 +483,7 @@ export const AuthorProfilePage: React.FC<AuthorProfilePageProps> = ({ authorId }
                         className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                         loading="lazy"
                       />
+                      ) : null}
                       {art.isBreaking && (
                         <div className="absolute top-2 left-2 bg-[#BB1919] text-white text-[10px] font-black uppercase px-1.5 py-0.5 tracking-wider">
                           Breaking
