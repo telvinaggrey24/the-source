@@ -3,7 +3,9 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  query,
   setDoc,
+  where,
   type DocumentData,
 } from 'firebase/firestore';
 import type { Article } from '../types';
@@ -47,24 +49,49 @@ export function isCmsArticle(article: Article | null | undefined): boolean {
   return Boolean(article && !article.isWireStory);
 }
 
-export async function fetchCmsArticles(): Promise<Article[]> {
-  if (!db || !isFirebaseConfigured) return [];
-  try {
-    const snap = await getDocs(collection(db, COLLECTION));
-    const items: Article[] = [];
-    snap.forEach(docSnap => {
-      const data = docSnap.data() as DocumentData;
-      if (!data || data.isWireStory) return;
-      items.push({
-        ...(data as Article),
-        id: docSnap.id,
-        isWireStory: false,
-      });
+function snapshotToArticles(snap: { forEach: (cb: (d: { id: string; data: () => DocumentData }) => void) => void }) {
+  const items: Article[] = [];
+  snap.forEach(docSnap => {
+    const data = docSnap.data();
+    if (!data || data.isWireStory) return;
+    items.push({
+      ...(data as Article),
+      id: docSnap.id,
+      isWireStory: false,
     });
-    return items;
+  });
+  return items;
+}
+
+/**
+ * Published posts for every visitor. Security rules only allow reading published
+ * documents, and Firestore rejects a whole-collection read unless the query itself
+ * filters on status — so public visitors must always use this filtered query.
+ * Returns null when Firestore could not be reached, so callers keep what they have.
+ */
+export async function fetchCmsArticles(): Promise<Article[] | null> {
+  if (!db || !isFirebaseConfigured) return null;
+  try {
+    const snap = await getDocs(
+      query(collection(db, COLLECTION), where('status', '==', 'published'))
+    );
+    return snapshotToArticles(snap);
   } catch (error) {
-    console.warn('[cms] Failed to load articles from Firestore', error);
-    return [];
+    console.warn('[cms] Failed to load published articles from Firestore', error);
+    return null;
+  }
+}
+
+/** Drafts, scheduled and archived posts — only the signed-in admin may read these. */
+export async function fetchAllCmsArticlesAsAdmin(): Promise<Article[] | null> {
+  if (!db || !isFirebaseConfigured) return null;
+  try {
+    assertCanWriteCms();
+    const snap = await getDocs(collection(db, COLLECTION));
+    return snapshotToArticles(snap);
+  } catch (error) {
+    console.warn('[cms] Failed to load all articles as admin', error);
+    return null;
   }
 }
 

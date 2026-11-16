@@ -27,6 +27,7 @@ import {
 } from '../lib/auth';
 import {
   deleteCmsArticle,
+  fetchAllCmsArticlesAsAdmin,
   fetchCmsArticles,
   mergeCmsArticles,
   migrateLocalCmsToFirestore,
@@ -490,19 +491,23 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const applyRemoteCms = (remoteCms: Article[]) => {
+    setArticles(prev => {
+      const drafts = prev.filter(
+        a => !a.isWireStory && !isGoogleNewsArtifact(a) && a.status !== 'published'
+      );
+      const merged = mergeCmsArticles(drafts, remoteCms.filter(a => !a.isWireStory));
+      persistCmsArticles(merged);
+      return merged;
+    });
+  };
+
   const refreshNewsWire = async () => {
     setNewsLoading(true);
     setNewsError(null);
     try {
       const remoteCms = await fetchCmsArticles();
-      setArticles(prev => {
-        const drafts = prev.filter(
-          a => !a.isWireStory && !isGoogleNewsArtifact(a) && a.status !== 'published'
-        );
-        const merged = mergeCmsArticles(drafts, remoteCms.filter(a => !a.isWireStory));
-        persistCmsArticles(merged);
-        return merged;
-      });
+      if (remoteCms) applyRemoteCms(remoteCms);
     } catch (error) {
       setNewsError(error instanceof Error ? error.message : 'Imeshindwa kupakia habari.');
       setArticles(prev => prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a)));
@@ -539,14 +544,7 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch {}
       }
 
-      setArticles(prev => {
-        const drafts = prev.filter(
-          a => !a.isWireStory && !isGoogleNewsArtifact(a) && a.status !== 'published'
-        );
-        const merged = mergeCmsArticles(drafts, remoteCms.filter(a => !a.isWireStory));
-        persistCmsArticles(merged);
-        return merged;
-      });
+      if (remoteCms) applyRemoteCms(remoteCms);
 
       siteConfigReady.current = true;
       setNewsLoading(false);
@@ -1387,6 +1385,17 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (count > 0) {
             console.info(`[cms] Synced ${count} editorial post(s) to Firestore`);
           }
+          return fetchAllCmsArticlesAsAdmin().then(all => {
+            if (!all) return;
+            setArticles(prev => {
+              const merged = mergeCmsArticles(
+                prev.filter(a => !a.isWireStory && !isGoogleNewsArtifact(a)),
+                all
+              );
+              persistCmsArticles(merged);
+              return merged;
+            });
+          });
         });
       }
     });
