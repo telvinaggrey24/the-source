@@ -73,6 +73,12 @@ import { articlePath } from '../../utils/routes';
 import { VideoEmbed } from '../common/VideoEmbed';
 import { parseVideoUrl } from '../../lib/videoEmbed';
 import {
+  connectYouTube,
+  hasYouTubeAccess,
+  uploadVideoToYouTube,
+  type YouTubePrivacy,
+} from '../../lib/youtubeUpload';
+import {
   AUDIO_ACCEPT,
   FilePickerButton,
   MEDIA_ACCEPT,
@@ -228,6 +234,10 @@ export const AdminDashboard: React.FC = () => {
   const [mediaBusy, setMediaBusy] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [mediaProgress, setMediaProgress] = useState(0);
+  const [videoDestination, setVideoDestination] = useState<'youtube' | 'cloudinary'>('youtube');
+  const [youtubePrivacy, setYoutubePrivacy] = useState<YouTubePrivacy>('public');
+  const [youtubeConnected, setYoutubeConnected] = useState(() => hasYouTubeAccess());
+  const [youtubeNotice, setYoutubeNotice] = useState<string | null>(null);
   const [formSeoTitle, setFormSeoTitle] = useState('');
   const [formSeoDesc, setFormSeoDesc] = useState('');
   const [formCanonicalUrl, setFormCanonicalUrl] = useState('');
@@ -622,6 +632,18 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleConnectYouTube = async () => {
+    try {
+      setMediaError(null);
+      await connectYouTube();
+      setYoutubeConnected(true);
+      showToast('YouTube imeunganishwa. Chagua video sasa.');
+    } catch (err) {
+      setYoutubeConnected(false);
+      failMediaUpload(err, 'Could not connect YouTube.');
+    }
+  };
+
   const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -629,7 +651,31 @@ export const AdminDashboard: React.FC = () => {
     try {
       setMediaBusy('video');
       setMediaError(null);
+      setYoutubeNotice(null);
       setMediaProgress(0);
+
+      if (videoDestination === 'youtube') {
+        if (!hasYouTubeAccess()) {
+          setYoutubeConnected(false);
+          throw new Error('Tap “Unganisha YouTube” kwanza.');
+        }
+        showToast('Inapakia video kwenye YouTube…');
+        const uploaded = await uploadVideoToYouTube(file, {
+          title: formTitle.trim() || file.name.replace(/\.[^.]+$/, ''),
+          description: formSummary.trim(),
+          privacy: youtubePrivacy,
+          onProgress: setMediaProgress,
+        });
+        setFormVideoUrl(uploaded.url);
+        if (uploaded.privacy === 'private') {
+          setYoutubeNotice(
+            'YouTube imeweka video hii kuwa PRIVATE (miradi ambayo haijakaguliwa na Google hulazimishwa hivi). Wasomaji hawataiona. Fungua YouTube Studio, ibadilishe kuwa Public au Unlisted, au pakia kwa Cloudinary.'
+          );
+        }
+        showToast('Video imepakiwa YouTube na imewekwa kwenye chapisho.');
+        return;
+      }
+
       showToast('Inapakia video kwenye chapisho…');
       const uploaded = await uploadMediaToCloudinary(file, {
         tags: ['article', 'video'],
@@ -2456,6 +2502,47 @@ export const AdminDashboard: React.FC = () => {
                       <Video className="w-3.5 h-3.5 text-red-600" />
                       <span>Video na sauti ndani ya chapisho</span>
                     </label>
+                    <div className="grid grid-cols-2 gap-1 p-0.5 bg-stone-100 rounded border border-stone-200">
+                      {([
+                        ['youtube', 'YouTube'],
+                        ['cloudinary', 'Kwenye tovuti'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setVideoDestination(value)}
+                          className={`py-1.5 rounded text-[11px] font-bold cursor-pointer ${
+                            videoDestination === value
+                              ? 'bg-white text-red-700 shadow-2xs'
+                              : 'text-stone-600'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {videoDestination === 'youtube' && (
+                      <div className="space-y-2">
+                        <select
+                          value={youtubePrivacy}
+                          onChange={e => setYoutubePrivacy(e.target.value as YouTubePrivacy)}
+                          className="w-full px-2 py-1.5 bg-white border border-stone-300 rounded text-xs"
+                        >
+                          <option value="public">Public (kila mtu anaiona kwenye YouTube)</option>
+                          <option value="unlisted">Unlisted (inaonekana kwenye habari tu)</option>
+                        </select>
+                        {!youtubeConnected && (
+                          <button
+                            type="button"
+                            onClick={handleConnectYouTube}
+                            className="w-full min-h-11 py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold cursor-pointer"
+                          >
+                            Unganisha YouTube (telvinaggrey24@gmail.com)
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {(videoDestination === 'cloudinary' || youtubeConnected) && (
                     <FilePickerButton
                       accept={VIDEO_ACCEPT}
                       disabled={mediaBusy === 'video'}
@@ -2466,9 +2553,17 @@ export const AdminDashboard: React.FC = () => {
                       <span>
                         {mediaBusy === 'video'
                           ? `Inapakia video… ${mediaProgress}%`
-                          : 'Pakia video kutoka simu / kompyuta'}
+                          : videoDestination === 'youtube'
+                            ? 'Pakia video kwenye YouTube'
+                            : 'Pakia video kutoka simu / kompyuta'}
                       </span>
                     </FilePickerButton>
+                    )}
+                    {youtubeNotice && (
+                      <div className="p-2 bg-amber-50 border border-amber-300 rounded text-amber-900 text-[11px]">
+                        {youtubeNotice}
+                      </div>
+                    )}
                     {mediaBusy === 'video' && (
                       <div className="h-1.5 w-full rounded bg-stone-200 overflow-hidden">
                         <div
