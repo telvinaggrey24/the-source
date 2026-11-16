@@ -28,6 +28,8 @@ import { getCategoryTheme } from '../utils/categoryTheme';
 import { localizeArticle } from '../utils/articleLocale';
 import { AppLink } from './common/AppLink';
 import { articlePath } from '../utils/routes';
+import { VideoEmbed } from './common/VideoEmbed';
+import { videoUrlFromLine } from '../lib/videoEmbed';
 
 interface ArticleDetailProps {
   slug: string;
@@ -54,6 +56,12 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
 
   const article = articles.find(a => a.slug === slug);
   const copy = article ? localizeArticle(article, language) : null;
+  const bodyHasVideo = Boolean(
+    article?.videoUrl &&
+      (copy?.content || article.content).some(paragraph =>
+        paragraph.split('\n').some(line => videoUrlFromLine(line) === article.videoUrl?.trim())
+      )
+  );
 
   // Audio simulator state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -511,31 +519,13 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
         ) : null}
 
         {/* Embedded Video Player (YouTube or MP4) */}
-        {article.videoUrl && (
+        {article.videoUrl && !bodyHasVideo && (
           <div className="mt-5 rounded-xs overflow-hidden bg-stone-900 border border-stone-800 shadow-md">
             <div className="p-2 bg-stone-950 text-stone-300 text-xs flex items-center gap-1.5 font-bold uppercase tracking-wider">
               <Video className="w-3.5 h-3.5 text-red-500" />
-              <span>Video Ripoti / Story Broadcast</span>
+              <span>{language === 'sw' ? 'Video ya habari' : 'Story video'}</span>
             </div>
-            {article.videoUrl.includes('youtube.com') || article.videoUrl.includes('youtu.be') ? (
-              <div className="relative aspect-video w-full">
-                <iframe
-                  src={
-                    article.videoUrl.includes('watch?v=')
-                      ? article.videoUrl.replace('watch?v=', 'embed/').split('&')[0]
-                      : article.videoUrl.includes('youtu.be/')
-                      ? `https://www.youtube.com/embed/${article.videoUrl.split('youtu.be/')[1]?.split('?')[0]}`
-                      : article.videoUrl
-                  }
-                  title={article.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              </div>
-            ) : (
-              <video src={article.videoUrl} controls className="w-full aspect-video object-contain" />
-            )}
+            <VideoEmbed url={article.videoUrl} title={article.title} />
           </div>
         )}
 
@@ -686,6 +676,29 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ slug }) => {
                     >
                       {paragraph.replace('> ', '')}
                     </blockquote>
+                  );
+                }
+
+                const lines = paragraph.split('\n');
+                if (lines.some(line => videoUrlFromLine(line))) {
+                  return (
+                    <div key={index} className="space-y-4 my-6">
+                      {lines.map((line, i) => {
+                        const videoUrl = videoUrlFromLine(line);
+                        if (videoUrl) {
+                          return (
+                            <div key={i} className="rounded-xs overflow-hidden bg-stone-900 border border-stone-800 shadow-md">
+                              <VideoEmbed url={videoUrl} title={article.title} />
+                            </div>
+                          );
+                        }
+                        return line.trim() ? (
+                          <p key={i} className="leading-relaxed">
+                            {line}
+                          </p>
+                        ) : null;
+                      })}
+                    </div>
                   );
                 }
 

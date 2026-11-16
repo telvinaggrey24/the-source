@@ -70,6 +70,8 @@ import {
 import { WorldMap } from '../common/WorldMap';
 import { isCloudinaryConfigured, uploadMediaToCloudinary } from '../../lib/cloudinary';
 import { articlePath } from '../../utils/routes';
+import { VideoEmbed } from '../common/VideoEmbed';
+import { parseVideoUrl } from '../../lib/videoEmbed';
 import {
   AUDIO_ACCEPT,
   FilePickerButton,
@@ -225,6 +227,7 @@ export const AdminDashboard: React.FC = () => {
   const [formImageGallery, setFormImageGallery] = useState<string[]>([]);
   const [mediaBusy, setMediaBusy] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [mediaProgress, setMediaProgress] = useState(0);
   const [formSeoTitle, setFormSeoTitle] = useState('');
   const [formSeoDesc, setFormSeoDesc] = useState('');
   const [formCanonicalUrl, setFormCanonicalUrl] = useState('');
@@ -259,6 +262,21 @@ export const AdminDashboard: React.FC = () => {
       textarea.focus();
       textarea.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length);
     }, 10);
+  };
+
+  const insertVideoIntoBody = () => {
+    const url = formVideoUrl.trim();
+    if (!parseVideoUrl(url)) {
+      showToast('Weka au pakia video kwanza.');
+      return;
+    }
+    const textarea = contentTextareaRef.current;
+    const pos = textarea ? textarea.selectionStart : formContent.length;
+    const before = formContent.slice(0, pos).replace(/\n*$/, '');
+    const after = formContent.slice(pos).replace(/^\n*/, '');
+    const next = `${before}${before ? '\n\n' : ''}${url}\n\n${after}`.replace(/\n+$/, '\n');
+    setFormContent(next);
+    showToast('Video imewekwa ndani ya maandishi ya habari.');
   };
 
   // Staff & Admin Member Creation Modal State
@@ -611,14 +629,19 @@ export const AdminDashboard: React.FC = () => {
     try {
       setMediaBusy('video');
       setMediaError(null);
+      setMediaProgress(0);
       showToast('Inapakia video kwenye chapisho…');
-      const uploaded = await uploadIntoPost(file, ['article', 'video']);
+      const uploaded = await uploadMediaToCloudinary(file, {
+        tags: ['article', 'video'],
+        onProgress: setMediaProgress,
+      });
       setFormVideoUrl(uploaded.url);
       showToast('Video imewekwa kwenye chapisho.');
     } catch (err) {
       failMediaUpload(err, 'Video upload failed.');
     } finally {
       setMediaBusy(null);
+      setMediaProgress(0);
     }
   };
 
@@ -2440,10 +2463,61 @@ export const AdminDashboard: React.FC = () => {
                       className="py-2 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded text-xs font-bold text-stone-800 gap-2"
                     >
                       <Video className="w-3.5 h-3.5" />
-                      <span>{mediaBusy === 'video' ? 'Inapakia video…' : 'Pakia video (MP4 / WebM)'}</span>
+                      <span>
+                        {mediaBusy === 'video'
+                          ? `Inapakia video… ${mediaProgress}%`
+                          : 'Pakia video kutoka simu / kompyuta'}
+                      </span>
                     </FilePickerButton>
-                    {formVideoUrl && (
-                      <video src={formVideoUrl} controls className="w-full rounded bg-black max-h-40" />
+                    {mediaBusy === 'video' && (
+                      <div className="h-1.5 w-full rounded bg-stone-200 overflow-hidden">
+                        <div
+                          className="h-full bg-red-600 transition-all"
+                          style={{ width: `${mediaProgress}%` }}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">
+                        Au bandika kiungo (YouTube, Vimeo, Facebook, MP4)
+                      </label>
+                      <input
+                        type="url"
+                        inputMode="url"
+                        value={formVideoUrl}
+                        onChange={e => setFormVideoUrl(e.target.value)}
+                        placeholder="https://youtu.be/..."
+                        className="w-full px-2 py-1.5 bg-white border border-stone-300 rounded text-xs font-mono"
+                      />
+                      {formVideoUrl.trim() && !parseVideoUrl(formVideoUrl) && (
+                        <p className="mt-1 text-[10px] text-amber-700">
+                          Kiungo hiki hakiwezi kuonyeshwa ndani ya chapisho. Tumia YouTube, Vimeo, Facebook, au faili la MP4.
+                        </p>
+                      )}
+                    </div>
+                    {parseVideoUrl(formVideoUrl) && (
+                      <div className="space-y-2">
+                        <VideoEmbed url={formVideoUrl} title="Hakiki video" className="rounded" />
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={insertVideoIntoBody}
+                            className="py-1.5 px-2 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold cursor-pointer"
+                          >
+                            Weka ndani ya maandishi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormVideoUrl('')}
+                            className="py-1.5 px-2 bg-white hover:bg-stone-50 border border-stone-300 rounded text-[11px] font-bold text-red-700 cursor-pointer"
+                          >
+                            Ondoa video
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-stone-500">
+                          Bila “Weka ndani ya maandishi”, video inaonekana juu ya habari, chini ya picha ya jalada.
+                        </p>
+                      </div>
                     )}
 
                     <FilePickerButton
@@ -2459,7 +2533,7 @@ export const AdminDashboard: React.FC = () => {
                       <audio src={formAudioUrl} controls className="w-full" />
                     )}
                     <p className="text-[10px] text-stone-500">
-                      Faili zinawekwa kwenye chapisho na zinaonekana kwa msomaji ndani ya habari — si kiungo cha nje.
+                      Video na sauti zinaonekana kwa msomaji ndani ya habari — si kiungo cha nje.
                     </p>
                   </div>
 
