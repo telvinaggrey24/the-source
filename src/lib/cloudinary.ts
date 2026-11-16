@@ -12,7 +12,9 @@ export interface CloudinaryUploadResult {
 
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const AUDIO_MAX_BYTES = 20 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+const CHUNK_THRESHOLD = 20 * 1024 * 1024;
+const CHUNK_SIZE = 6 * 1024 * 1024;
 const SERVER_FALLBACK_BYTES = 3.5 * 1024 * 1024;
 
 export function isCloudinaryConfigured(): boolean {
@@ -120,6 +122,88 @@ async function postUploadApi(body: unknown): Promise<{
   );
 }
 
+
+type CloudinaryResponse = {
+  error?: { message?: string };
+  secure_url?: string;
+  url?: string;
+  public_id?: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  bytes?: number;
+  resource_type?: string;
+};
+
+function xhrUpload(
+  endpoint: string,
+  form: FormData,
+  headers: Record<string, string>,
+  onProgress?: (loaded: number) => void
+): Promise<{ ok: boolean; status: number; data: CloudinaryResponse }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', endpoint);
+    for (const [key, value] of Object.entries(headers)) xhr.setRequestHeader(key, value);
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable) onProgress?.(event.loaded);
+    };
+    xhr.onerror = () => reject(new Error('Network error while uploading. Check your connection and try again.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out. Try a smaller file or a better connection.'));
+    xhr.onload = () => {
+      let data: CloudinaryResponse = {};
+      try {
+        data = JSON.parse(xhr.responseText || '{}') as CloudinaryResponse;
+      } catch {
+        data = {};
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+    };
+    xhr.send(form);
+  });
+}
+
+async function sendToCloudinary(
+  endpoint: string,
+  file: File,
+  fields: Record<string, string>,
+  onProgress?: (percent: number) => void
+): Promise<{ ok: boolean; status: number; data: CloudinaryResponse }> {
+  const buildForm = (body: Blob) => {
+    const form = new FormData();
+    form.append('file', body, file.name);
+    for (const [key, value] of Object.entries(fields)) form.append(key, value);
+    return form;
+  };
+
+  if (file.size <= CHUNK_THRESHOLD) {
+    return xhrUpload(endpoint, buildForm(file), {}, loaded =>
+      onProgress?.(Math.min(99, Math.round((loaded / file.size) * 100)))
+    );
+  }
+
+  const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  let last: { ok: boolean; status: number; data: CloudinaryResponse } = {
+    ok: false,
+    status: 0,
+    data: {},
+  };
+  for (let start = 0; start < file.size; start += CHUNK_SIZE) {
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    last = await xhrUpload(
+      endpoint,
+      buildForm(file.slice(start, end)),
+      {
+        'X-Unique-Upload-Id': uploadId,
+        'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
+      },
+      loaded => onProgress?.(Math.min(99, Math.round(((start + loaded) / file.size) * 100)))
+    );
+    if (!last.ok) return last;
+  }
+  return last;
+}
+
 async function signUpload(
   resourceType: 'image' | 'video',
   tags: string[]
@@ -186,7 +270,7 @@ async function uploadImageViaApi(
  */
 export async function uploadMediaToCloudinary(
   file: File,
-  options?: { tags?: string[] }
+  options?: { tags?: string[]; onProgress?: (percent: number) => void }
 ): Promise<CloudinaryUploadResult & { kind: MediaKind }> {
   let working = file;
   let kind = detectKind(working);
@@ -207,27 +291,18 @@ export async function uploadMediaToCloudinary(
   const tags = options?.tags || [];
   const signed = await signUpload(resourceType, tags);
 
-  const form = new FormData();
-  form.append('file', working);
-  form.append('api_key', signed.apiKey);
-  form.append('timestamp', String(signed.timestamp));
-  form.append('signature', signed.signature);
-  form.append('folder', signed.folder);
-  if (tags.length) form.append('tags', tags.join(','));
+  const fields: Record<string, string> = {
+    api_key: signed.apiKey,
+    timestamp: String(signed.timestamp),
+    signature: signed.signature,
+    folder: signed.folder,
+  };
+  if (tags.length) fields.tags = tags.join(',');
 
   const endpoint = `https://api.cloudinary.com/v1_1/${signed.cloudName}/${resourceType}/upload`;
-  const upstream = await fetch(endpoint, { method: 'POST', body: form });
-  const data = (await upstream.json().catch(() => ({}))) as {
-    error?: { message?: string };
-    secure_url?: string;
-    url?: string;
-    public_id?: string;
-    width?: number;
-    height?: number;
-    format?: string;
-    bytes?: number;
-    resource_type?: string;
-  };
+  options?.onProgress?.(0);
+  const upstream = await sendToCloudinary(endpoint, working, fields, options?.onProgress);
+  const data = upstream.data;
 
   if (!upstream.ok) {
     if (kind === 'image' && working.size <= SERVER_FALLBACK_BYTES) {
@@ -237,8 +312,14 @@ export async function uploadMediaToCloudinary(
         // Keep the Cloudinary error — it is usually more specific.
       }
     }
-    throw new Error(data.error?.message || `Upload failed (${upstream.status})`);
+    const reason = data.error?.message || `Upload failed (${upstream.status})`;
+    throw new Error(
+      /file size too large|too large/i.test(reason) && kind === 'video'
+        ? 'Video is too large for upload (limit 100MB). Trim it or paste a YouTube link instead.'
+        : reason
+    );
   }
+  options?.onProgress?.(100);
 
   const url = data.secure_url || data.url;
   if (!url) throw new Error('Upload succeeded but no media URL was returned.');
